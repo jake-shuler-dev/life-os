@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2,
 } from "lucide-react";
 import FinanceDashboard from "./pages/FinanceDashboard.jsx";
 import Login from "./components/Login.jsx";
@@ -59,6 +59,19 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  const [fs, setFs] = useState(false);
+  useEffect(() => {
+    const h = () => setFs(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    document.addEventListener("fullscreenchange", h);
+    document.addEventListener("webkitfullscreenchange", h);
+    return () => { document.removeEventListener("fullscreenchange", h); document.removeEventListener("webkitfullscreenchange", h); };
+  }, []);
+  const toggleFs = () => {
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document); }
+    else { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el); }
+  };
+
   const mod = MODULES.find((m) => m.id === active);
   const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
   const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -109,6 +122,9 @@ export default function App() {
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 9.5, letterSpacing: ".18em", color: T.good, borderLeft: `1px solid ${T.line2}`, paddingLeft: 16 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.good, animation: "pulse 2s infinite" }} /> ONLINE
           </span>
+          <button onClick={toggleFs} title={fs ? "Exit full screen" : "Full screen"} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 9px", fontFamily: "inherit", cursor: "pointer" }}>
+            {fs ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          </button>
           {supabaseReady && session && (
             <button onClick={() => supabase.auth.signOut()} title="Sign out" style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 10px", fontFamily: "inherit", fontSize: 9.5, letterSpacing: ".15em", cursor: "pointer" }}>
               <LogOut size={12} /> SIGN OUT
