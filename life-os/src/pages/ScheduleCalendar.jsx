@@ -63,7 +63,7 @@ export default function ScheduleCalendar({ view, setView }) {
   const catById = (id) => categories.find((c) => c.id === id);
   const events = []; // linked-calendar events arrive once Google/iCal sync is built
 
-  const anchor = useMemoAnchor(pattern);
+  const anchor = computeAnchor(pattern);
   const splitPct = parseTime(pattern.switchTime) / 24 * 100;
   function mineAt(ms) { const cyc = pattern.on + pattern.off; const days = (ms - anchor) / 864e5; const pos = ((days % cyc) + cyc) % cyc; return pos < pattern.on; }
   function shadeOf(d) {
@@ -226,13 +226,11 @@ export default function ScheduleCalendar({ view, setView }) {
   );
 }
 
-function useMemoAnchor(pattern) {
-  return useMemo(() => {
-    const h = parseTime(pattern.switchTime);
-    const a = new Date((pattern.startDate || new Date().toISOString().slice(0, 10)) + "T00:00");
-    a.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
-    return a.getTime();
-  }, [pattern.startDate, pattern.switchTime]);
+function computeAnchor(pattern) {
+  const h = parseTime(pattern.switchTime);
+  const a = new Date((pattern.startDate || new Date().toISOString().slice(0, 10)) + "T00:00");
+  a.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
+  return a.getTime();
 }
 const navBtn = { background: "#17171B", border: "1px solid #34343D", color: "#8C8C95", width: 27, height: 27, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
 function H({ children, mt }) { return <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: ".16em", color: "#56565E", textTransform: "uppercase", marginBottom: 9, marginTop: mt ? 13 : 0, borderTop: mt ? "1px solid #27272E" : "none", paddingTop: mt ? 11 : 0 }}>{children}</div>; }
