@@ -114,26 +114,23 @@ export default function Today() {
         @keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* header + weather */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 13, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontFamily: "'Fraunces',serif", fontSize: 26, fontWeight: 500 }}>{greet}, Jake</div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.faint, letterSpacing: ".1em", textTransform: "uppercase", marginTop: 3 }}>{today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
-        </div>
-        <div style={{ flex: 1 }} />
-        {weather && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, background: T.panel, border: "1px solid " + T.line, borderRadius: 12, padding: "10px 16px" }}>
-            <span style={{ fontSize: 24 }}>{wx(weather.code).e}</span>
-            <div><div style={{ fontSize: 20, fontWeight: 600 }}>{weather.now}°</div><div style={{ fontSize: 11, color: T.dim }}>{wx(weather.code).t} · {weather.hi}° / {weather.lo}°{weather.pop > 10 ? " · " + weather.pop + "% precip" : ""}</div></div>
-          </div>
-        )}
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontFamily: "'Fraunces',serif", fontSize: 26, fontWeight: 500 }}>{greet}, Jake</div>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.faint, letterSpacing: ".1em", textTransform: "uppercase", marginTop: 3 }}>{today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
       </div>
 
-      {/* today's forecast */}
-      {weather && weather.hours && weather.hours.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: "12px 16px", marginBottom: 14, overflowX: "auto" }}>
-          <div style={{ ...lbl, marginBottom: 0, whiteSpace: "nowrap" }}>Today's forecast</div>
-          {weather.hours.map((h, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 54, paddingLeft: 10, borderLeft: "1px solid " + T.line }}>
+      {/* weather: current conditions + today's forecast, together */}
+      {weather && (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: "12px 16px", marginBottom: 14, overflowX: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            <span style={{ fontSize: 30 }}>{wx(weather.code).e}</span>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 600, lineHeight: 1 }}>{weather.now}°</div>
+              <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Now · {wx(weather.code).t} · {weather.hi}°/{weather.lo}°</div>
+            </div>
+          </div>
+          {weather.hours && weather.hours.map((h, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 54, paddingLeft: 12, borderLeft: "1px solid " + T.line, flexShrink: 0 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: T.faint }}>{new Date(h.t).toLocaleTimeString("en-US", { hour: "numeric" })}</span>
               <span style={{ fontSize: 17 }}>{wx(h.code).e}</span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{h.temp}°</span>
@@ -183,8 +180,8 @@ export default function Today() {
           <Panel title="Finance" Icon={Wallet} accent={T.ember}>
             {fin == null ? <Muted>Loading…</Muted> : (
               <div style={{ display: "flex", gap: 28 }}>
-                <div><div style={lbl}>Total cash</div><div style={{ fontSize: 28, fontWeight: 600 }}>{money(fin.cash)}</div></div>
-                <div><div style={lbl}>Cash runway</div><div style={{ fontSize: 28, fontWeight: 600 }}>{isFinite(fin.runway) ? fin.runway.toFixed(1) + " mo" : "growing"}</div></div>
+                <div><div style={lbl}>Total cash</div><div style={{ fontSize: 22, fontWeight: 400 }}>{money(fin.cash)}</div></div>
+                <div><div style={lbl}>Cash runway</div><div style={{ fontSize: 22, fontWeight: 400 }}>{isFinite(fin.runway) ? fin.runway.toFixed(1) + " mo" : "growing"}</div></div>
               </div>
             )}
           </Panel>
