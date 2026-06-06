@@ -11,18 +11,19 @@ const C = {
   text: "#ECECEF", mut: "#8A8A95", mut2: "#6B6B75", accent: "#FF6B2C", pos: "#54D6A0", neg: "#F2585F", amber: "#FFB020",
 };
 const money = (n) => "$" + Math.round(+n || 0).toLocaleString("en-US");
+const fmtNum = (n) => { const v = +n || 0; return v === 0 ? "" : v.toLocaleString("en-US", { maximumFractionDigits: 2 }); };
 const ARRAYS = ["income", "expenses", "annual", "assets", "liabilities", "accounts", "cards"];
 
 function NumCell({ value, onChange }) {
-  const [t, setT] = useState(value === 0 ? "" : String(value));
+  const [t, setT] = useState(fmtNum(value));
   const foc = useRef(false);
-  useEffect(() => { if (!foc.current) setT(value === 0 ? "" : String(value)); }, [value]);
+  useEffect(() => { if (!foc.current) setT(fmtNum(value)); }, [value]);
   return (
     <div style={{ position: "relative" }}>
       <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: C.mut2, fontSize: 12.5, pointerEvents: "none" }}>$</span>
       <input value={t} inputMode="decimal" placeholder="0"
-        onFocus={(e) => { foc.current = true; e.target.select(); }}
-        onBlur={() => { foc.current = false; const n = parseFloat(t) || 0; onChange(n); setT(n === 0 ? "" : String(n)); }}
+        onFocus={(e) => { foc.current = true; setT(value === 0 ? "" : String(value)); e.target.select(); }}
+        onBlur={() => { foc.current = false; const n = parseFloat(String(t).replace(/,/g, "")) || 0; onChange(n); setT(fmtNum(n)); }}
         onChange={(e) => { const v = e.target.value.replace(/[^0-9.\-]/g, ""); setT(v); onChange(parseFloat(v) || 0); }}
         className="fe-in" style={{ textAlign: "right", paddingLeft: 18, fontVariantNumeric: "tabular-nums" }} />
     </div>

@@ -83,6 +83,7 @@ const STORE_KEY = "finance_data_v3";
 
 /* ------------------------------- formatters ------------------------------ */
 const money0 = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const fmtNum = (n) => { const v = +n || 0; return v === 0 ? "" : v.toLocaleString("en-US", { maximumFractionDigits: 2 }); };
 const compact = (n) => {
   const a = Math.abs(n);
   if (a >= 1e6) return (n < 0 ? "-" : "") + "$" + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2) + "M";
@@ -93,13 +94,13 @@ const compact = (n) => {
 /* --------------------------- small UI primitives -------------------------- */
 function NumInput({ value, onChange, style }) {
   const C = useC();
-  const [t, setT] = useState(String(value));
+  const [t, setT] = useState(fmtNum(value));
   const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setT(value === 0 ? "" : String(value)); }, [value]);
+  useEffect(() => { if (!focused.current) setT(fmtNum(value)); }, [value]);
   return (
     <input value={t} inputMode="decimal" placeholder="0"
-      onFocus={(e) => { focused.current = true; e.target.select(); }}
-      onBlur={() => { focused.current = false; onChange(parseFloat(t) || 0); setT((parseFloat(t) || 0) === 0 ? "" : String(parseFloat(t) || 0)); }}
+      onFocus={(e) => { focused.current = true; setT(value === 0 ? "" : String(value)); e.target.select(); }}
+      onBlur={() => { focused.current = false; const n = parseFloat(String(t).replace(/,/g, "")) || 0; onChange(n); setT(fmtNum(n)); }}
       onChange={(e) => setT(e.target.value.replace(/[^0-9.]/g, ""))}
       onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
       style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
@@ -279,7 +280,7 @@ export default function FinanceDashboard({ onEdit }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Wallet size={13} /> Net Monthly Cash Flow
                     </div>
-                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 800, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 600, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>
                       {negative ? "−" : "+"}{money0(Math.abs(M.net))}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, color: negative ? C.neg : C.pos, fontSize: 12.5 }}>
@@ -373,7 +374,7 @@ export default function FinanceDashboard({ onEdit }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Scale size={13} /> Net Worth
                     </div>
-                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 800, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{compact(M.netWorth)}</div>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 600, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{compact(M.netWorth)}</div>
                     <div style={{ color: C.mut, fontSize: 12.5, marginTop: 10 }}>assets minus everything you owe</div>
                     <div style={{ display: "flex", gap: 18, marginTop: 18 }}>
                       <MiniStat icon={<Building2 size={12} color={C.pos} />} label="Assets" v={M.assetsTotal} />
