@@ -225,7 +225,7 @@ export default function FinanceDashboard({ onEdit }) {
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.bg, minHeight: "auto", color: C.text, fontFamily: "'Hanken Grotesk', system-ui, sans-serif", transition: "background .25s" }}>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
           * { box-sizing: border-box; }
           input::placeholder { color: ${C.mut2}; }
           ::selection { background: ${C.accent}; color: #fff; }
@@ -279,7 +279,7 @@ export default function FinanceDashboard({ onEdit }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Wallet size={13} /> Net Monthly Cash Flow
                     </div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-.02em", color: negative ? C.neg : C.pos }}>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 800, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>
                       {negative ? "−" : "+"}{money0(Math.abs(M.net))}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, color: negative ? C.neg : C.pos, fontSize: 12.5 }}>
@@ -323,7 +323,7 @@ export default function FinanceDashboard({ onEdit }) {
                 <Card style={{ padding: "14px 14px 6px", flex: 1, display: "flex", flexDirection: "column", minHeight: 150 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <span style={{ color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".06em" }}>Cash Runway</span>
-                    <span style={{ fontFamily: "'Fraunces',serif", fontSize: 16, color: negative ? C.neg : C.pos }}>{isFinite(M.runwayMonths) ? `${M.runwayMonths.toFixed(1)} mo` : "growing"}</span>
+                    <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>{isFinite(M.runwayMonths) ? `${M.runwayMonths.toFixed(1)} mo` : "growing"}</span>
                   </div>
                   <div style={{ flex: 1, minHeight: 110 }}>
                     <ResponsiveContainer>
@@ -373,7 +373,7 @@ export default function FinanceDashboard({ onEdit }) {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Scale size={13} /> Net Worth
                     </div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-.02em" }}>{compact(M.netWorth)}</div>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 800, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{compact(M.netWorth)}</div>
                     <div style={{ color: C.mut, fontSize: 12.5, marginTop: 10 }}>assets minus everything you owe</div>
                     <div style={{ display: "flex", gap: 18, marginTop: 18 }}>
                       <MiniStat icon={<Building2 size={12} color={C.pos} />} label="Assets" v={M.assetsTotal} />
@@ -410,7 +410,7 @@ export default function FinanceDashboard({ onEdit }) {
                 </div>
                 <Card style={{ padding: "16px 16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
                   <div style={{ color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".06em" }}>Leverage</div>
-                  <div style={{ fontFamily: "'Fraunces',serif", fontSize: 30, fontWeight: 500 }}>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 30, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                     {M.assetsTotal ? ((M.liabTotal / M.assetsTotal) * 100).toFixed(0) : 0}<span style={{ fontSize: 16, color: C.mut }}>%</span>
                   </div>
                   <div style={{ fontSize: 12, color: C.mut2, lineHeight: 1.5 }}>of your assets are financed by debt. The rest, {compact(M.assetsTotal - M.liabTotal)}, is equity.</div>
@@ -481,12 +481,12 @@ function Stat({ label, value, icon, accent }) {
   return (
     <Card style={{ padding: "13px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: accent ? C.neg : C.mut, fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em" }}>{icon}{label}</div>
-      <div style={{ fontFamily: "'Fraunces',serif", fontSize: 23, fontWeight: 500, marginTop: 5, letterSpacing: "-.01em", color: accent ? C.neg : C.text }}>{value}</div>
+      <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 23, fontWeight: 700, marginTop: 5, letterSpacing: "-.01em", fontVariantNumeric: "tabular-nums", color: accent ? C.neg : C.text }}>{value}</div>
     </Card>
   );
 }
 function Total({ v, color }) {
-  return <span style={{ fontFamily: "'Fraunces',serif", fontSize: 16, color, fontVariantNumeric: "tabular-nums" }}>{money0(v)}</span>;
+  return <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color, fontVariantNumeric: "tabular-nums" }}>{money0(v)}</span>;
 }
 function AutoRow({ icon, label, v }) {
   const C = useC();
@@ -828,7 +828,7 @@ function ImportModal({ targets, onApply, onClose }) {
             <div style={{ display: "flex", alignItems: "center", background: C.bg2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "0 10px" }}>
               <span style={{ color: C.mut2, fontSize: 15 }}>$</span>
               <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.\-]/g, ""))} inputMode="decimal"
-                style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 18, padding: "10px 6px", fontFamily: "'Fraunces', serif" }} />
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 18, fontWeight: 700, padding: "10px 6px", fontFamily: "'Hanken Grotesk', sans-serif", fontVariantNumeric: "tabular-nums" }} />
             </div>
           </div>
         )}

@@ -37,7 +37,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
       <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "13px 16px", borderBottom: `1px solid ${C.line}` }}>
         <span style={{ fontSize: 15 }}>{icon}</span>
         <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1 }}>{title}</span>
-        <span style={{ fontFamily: "'Fraunces',serif", fontSize: 16, fontVariantNumeric: "tabular-nums" }}>{money(total)}</span>
+        <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, fontVariantNumeric: "tabular-nums" }}>{money(total)}</span>
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead><tr>
@@ -73,7 +73,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
         </tbody>
         <tfoot><tr>
           <td className="fe-foot" colSpan={span} style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".08em" }}>Total</td>
-          <td className="fe-foot" style={{ fontFamily: "'Fraunces',serif", fontSize: 15, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{money(total)}</td>
+          <td className="fe-foot" style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{money(total)}</td>
           <td className="fe-foot"></td>
         </tr></tfoot>
       </table>
