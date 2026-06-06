@@ -74,9 +74,8 @@ export default function Today() {
       const cardRemainder = (f.cards || []).reduce((s, c) => { const pay = c.payment || 0; return s + (pay > 0 ? pay - (tagged[c.name] || 0) : 0); }, 0);
       const annualMo = (f.annual || []).reduce((s, a) => s + (+a.amount || 0), 0) / 12;
       const out = itemized + cardRemainder + (S.includeAnnual ? annualMo : 0);
-      const net = income - out;
       const cash = (f.accounts || []).reduce((s, a) => s + (+a.amount || 0), 0);
-      const runway = net < 0 ? cash / Math.abs(net) : Infinity;
+      const runway = out > 0 ? cash / out : Infinity;
       setFin({ cash, runway });
     } catch (e) { setFin({ cash: 0, runway: Infinity }); }
   }
