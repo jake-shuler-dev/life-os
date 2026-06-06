@@ -132,6 +132,9 @@ export default function ScheduleCalendar({ view, setView }) {
   for (let i = 0; i < 42; i++) { const d = addDays(start, i); cells.push({ d, k: key(d), out: d.getMonth() !== viewMonth.getMonth(), today: key(d) === key(today), shade: showMine ? shadeOf(d) : { t: "none" } }); }
   const dayEvents = events.filter((e) => e.date === selectedDate && show(e));
   const selD = new Date(selectedDate + "T00:00"), isSelToday = selectedDate === key(today);
+  const weekStart = startOfWeek(today);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekEnd = weekDays[6];
 
   const subNav = (
     <div style={{ display: "flex", gap: 5, background: T.panel, border: "1px solid " + T.line, borderRadius: 9, padding: 3 }}>
@@ -271,15 +274,44 @@ export default function ScheduleCalendar({ view, setView }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
-            <span style={{ width: 3, height: 14, borderRadius: 2, background: T.ember }} />
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", flex: 1 }}>{isSelToday ? "Today" : selD.toLocaleDateString("en-US", { weekday: "long" })}</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{selD.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 14 }}>
+          {/* TODAY box (33%) */}
+          <div style={{ flex: "33 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
+              <span style={{ width: 3, height: 14, borderRadius: 2, background: T.ember }} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", flex: 1 }}>{isSelToday ? "Today" : selD.toLocaleDateString("en-US", { weekday: "long" })}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{selD.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+            <div className="sc-body" style={{ padding: "6px 9px", overflow: "auto", minHeight: 0, flex: 1 }}>
+              {dayEvents.length === 0 ? <div style={{ color: T.faint, fontSize: 12.5, padding: 8, fontStyle: "italic" }}>{calendars.length ? "Nothing scheduled." : "No calendars linked yet — use ＋ Connect."}</div>
+                : dayEvents.map((e, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 7px" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: eventColor(e), flexShrink: 0 }} /><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.dim, width: 52, flexShrink: 0 }}>{e.time}</span><span style={{ fontSize: 13.5 }}>{e.title}</span></div>)}
+            </div>
           </div>
-          <div className="sc-body" style={{ padding: "6px 9px", overflow: "auto", minHeight: 0, flex: 1 }}>
-            {dayEvents.length === 0 ? <div style={{ color: T.faint, fontSize: 12.5, padding: 8, fontStyle: "italic" }}>{calendars.length ? "Nothing scheduled." : "No calendars linked yet — use ＋ Connect."}</div>
-              : dayEvents.map((e, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 7px" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: eventColor(e), flexShrink: 0 }} /><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.dim, width: 52, flexShrink: 0 }}>{e.time}</span><span style={{ fontSize: 13.5 }}>{e.title}</span></div>)}
+
+          {/* THIS WEEK box (66%) */}
+          <div style={{ flex: "66 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
+              <span style={{ width: 3, height: 14, borderRadius: 2, background: T.mine }} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", flex: 1 }}>This Week</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – {weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+            <div className="sc-body" style={{ padding: "4px 9px 8px", overflow: "auto", minHeight: 0, flex: 1 }}>
+              {weekDays.map((d) => {
+                const k = key(d), isT = k === key(today);
+                const evs = events.filter((e) => e.date === k && show(e));
+                return (
+                  <div key={k} onClick={() => setSelectedDate(k)} style={{ padding: "7px 5px 5px", borderBottom: "1px solid " + T.line, cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: evs.length ? 4 : 0 }}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: isT ? T.ember : T.dim }}>{d.toLocaleDateString("en-US", { weekday: "short" })}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: isT ? T.ember : T.faint }}>{d.getDate()}</span>
+                      {isT && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.ember, letterSpacing: ".1em" }}>• TODAY</span>}
+                    </div>
+                    {evs.length === 0 ? <div style={{ fontSize: 11, color: T.faint, paddingLeft: 2, fontStyle: "italic" }}>—</div>
+                      : evs.map((e, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "3px 2px" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: eventColor(e), flexShrink: 0 }} /><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.dim, width: 48, flexShrink: 0 }}>{e.time}</span><span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span></div>)}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
