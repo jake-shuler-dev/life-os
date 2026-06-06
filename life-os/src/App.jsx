@@ -4,6 +4,7 @@ import {
   House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
+import Schedule from "./pages/Schedule.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
@@ -27,8 +28,8 @@ const MODULES = [
       { t: "Due Today", d: "bills & card payments from Finances" },
     ],
   },
-  { id: "schedule", tab: "SCHEDULE", title: "Schedule", icon: CalendarDays, filters: ["All", "Me", "Kids"],
-    sub: [{ t: "Today at a Glance", d: "the day, distilled" }, { t: "Calendar", d: "month / week / day" }, { t: "Upcoming", d: "what's next" }, { t: "Notes", d: "quick capture" }] },
+  { id: "schedule", tab: "SCHEDULE", title: "Schedule", icon: CalendarDays, isSchedule: true,
+    sub: [{ t: "Calendar", d: "month / kids-with-me" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
   { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse,
@@ -154,6 +155,8 @@ export default function App() {
             <Home dateStr={dateStr} />
           ) : mod.isFinance ? (
             <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
+          ) : mod.isSchedule ? (
+            <Schedule />
           ) : mod.isAi ? (
             <AiChat />
           ) : (
