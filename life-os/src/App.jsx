@@ -7,6 +7,7 @@ import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import Vision from "./pages/Vision.jsx";
 import HomeControls from "./pages/HomeControls.jsx";
+import Today from "./pages/Today.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
@@ -21,7 +22,7 @@ const T = {
 /* ------------------------------- modules --------------------------------- */
 const MODULES = [
   {
-    id: "today", tab: "TODAY", title: "Today", icon: Sunrise,
+    id: "today", tab: "TODAY", title: "Today", icon: Sunrise, isToday: true,
     sub: [
       { t: "Daily Overview", d: "your whole day, compiled from every tab", live: true },
       { t: "On the Agenda", d: "events & what's next" },
@@ -157,6 +158,8 @@ export default function App() {
             <Home dateStr={dateStr} />
           ) : mod.isFinance ? (
             <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
+          ) : mod.isToday ? (
+            <Today />
           ) : mod.isSchedule ? (
             <Schedule />
           ) : mod.isVision ? (
