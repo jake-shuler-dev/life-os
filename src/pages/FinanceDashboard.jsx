@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from "recharts";
 import {
   TrendingUp, TrendingDown, Plus, X, Wallet, Building2, Landmark, CalendarClock,
-  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, Scale,
+  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, Scale, Upload, Table2,
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
@@ -83,6 +83,7 @@ const STORE_KEY = "finance_data_v3";
 
 /* ------------------------------- formatters ------------------------------ */
 const money0 = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
+const fmtNum = (n) => { const v = +n || 0; return v === 0 ? "" : v.toLocaleString("en-US", { maximumFractionDigits: 2 }); };
 const compact = (n) => {
   const a = Math.abs(n);
   if (a >= 1e6) return (n < 0 ? "-" : "") + "$" + (a / 1e6).toFixed(a >= 1e7 ? 1 : 2) + "M";
@@ -93,13 +94,13 @@ const compact = (n) => {
 /* --------------------------- small UI primitives -------------------------- */
 function NumInput({ value, onChange, style }) {
   const C = useC();
-  const [t, setT] = useState(String(value));
+  const [t, setT] = useState(fmtNum(value));
   const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setT(value === 0 ? "" : String(value)); }, [value]);
+  useEffect(() => { if (!focused.current) setT(fmtNum(value)); }, [value]);
   return (
     <input value={t} inputMode="decimal" placeholder="0"
-      onFocus={(e) => { focused.current = true; e.target.select(); }}
-      onBlur={() => { focused.current = false; onChange(parseFloat(t) || 0); setT((parseFloat(t) || 0) === 0 ? "" : String(parseFloat(t) || 0)); }}
+      onFocus={(e) => { focused.current = true; setT(value === 0 ? "" : String(value)); e.target.select(); }}
+      onBlur={() => { focused.current = false; const n = parseFloat(String(t).replace(/,/g, "")) || 0; onChange(n); setT(fmtNum(n)); }}
       onChange={(e) => setT(e.target.value.replace(/[^0-9.]/g, ""))}
       onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
       style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
@@ -137,10 +138,11 @@ function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false
 }
 
 /* --------------------------------- app ----------------------------------- */
-export default function FinanceDashboard() {
+export default function FinanceDashboard({ onEdit }) {
   const [data, setData] = useState(SEED);
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -167,6 +169,10 @@ export default function FinanceDashboard() {
   const updItem = (key, id, patch) => setData((d) => ({ ...d, [key]: d[key].map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
   const delItem = (key, id) => setData((d) => ({ ...d, [key]: d[key].filter((it) => it.id !== id) }));
   const addItem = (key, item) => setData((d) => ({ ...d, [key]: [...d[key], { id: uid(), ...item }] }));
+  const applyImport = (target, field, value) => {
+    if (target.type === "account") updItem("accounts", target.id, { amount: value });
+    else updItem("cards", target.id, field === "payment" ? { payment: value } : { balance: value });
+  };
 
   const M = useMemo(() => {
     const eff = (e) => e.amount * (e.split ? S.householdSplit : 1);
@@ -220,7 +226,7 @@ export default function FinanceDashboard() {
     <ThemeCtx.Provider value={C}>
       <div style={{ background: C.bg, minHeight: "auto", color: C.text, fontFamily: "'Hanken Grotesk', system-ui, sans-serif", transition: "background .25s" }}>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
           * { box-sizing: border-box; }
           input::placeholder { color: ${C.mut2}; }
           ::selection { background: ${C.accent}; color: #fff; }
@@ -244,6 +250,16 @@ export default function FinanceDashboard() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
+              {onEdit && (
+                <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  <Table2 size={13} /> Edit data
+                </button>
+              )}
+              <button onClick={() => setImportOpen(true)} title="Import a CSV from your bank, card, Robinhood, or Venmo"
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                <Upload size={13} /> Import CSV
+              </button>
               <button onClick={() => setS({ theme: S.theme === "light" ? "dark" : "light" })} title="Toggle theme"
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                 {S.theme === "light" ? <Moon size={13} /> : <Sun size={13} />}{S.theme === "light" ? "Dark" : "Light"}
@@ -264,7 +280,7 @@ export default function FinanceDashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Wallet size={13} /> Net Monthly Cash Flow
                     </div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-.02em", color: negative ? C.neg : C.pos }}>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 600, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>
                       {negative ? "−" : "+"}{money0(Math.abs(M.net))}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, color: negative ? C.neg : C.pos, fontSize: 12.5 }}>
@@ -308,7 +324,7 @@ export default function FinanceDashboard() {
                 <Card style={{ padding: "14px 14px 6px", flex: 1, display: "flex", flexDirection: "column", minHeight: 150 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <span style={{ color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".06em" }}>Cash Runway</span>
-                    <span style={{ fontFamily: "'Fraunces',serif", fontSize: 16, color: negative ? C.neg : C.pos }}>{isFinite(M.runwayMonths) ? `${M.runwayMonths.toFixed(1)} mo` : "growing"}</span>
+                    <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, fontVariantNumeric: "tabular-nums", color: negative ? C.neg : C.pos }}>{isFinite(M.runwayMonths) ? `${M.runwayMonths.toFixed(1)} mo` : "growing"}</span>
                   </div>
                   <div style={{ flex: 1, minHeight: 110 }}>
                     <ResponsiveContainer>
@@ -358,7 +374,7 @@ export default function FinanceDashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
                       <Scale size={13} /> Net Worth
                     </div>
-                    <div style={{ fontFamily: "'Fraunces', serif", fontSize: 46, fontWeight: 500, lineHeight: 1, letterSpacing: "-.02em" }}>{compact(M.netWorth)}</div>
+                    <div style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 46, fontWeight: 600, lineHeight: 1, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{compact(M.netWorth)}</div>
                     <div style={{ color: C.mut, fontSize: 12.5, marginTop: 10 }}>assets minus everything you owe</div>
                     <div style={{ display: "flex", gap: 18, marginTop: 18 }}>
                       <MiniStat icon={<Building2 size={12} color={C.pos} />} label="Assets" v={M.assetsTotal} />
@@ -395,7 +411,7 @@ export default function FinanceDashboard() {
                 </div>
                 <Card style={{ padding: "16px 16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
                   <div style={{ color: C.mut, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".06em" }}>Leverage</div>
-                  <div style={{ fontFamily: "'Fraunces',serif", fontSize: 30, fontWeight: 500 }}>
+                  <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 30, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                     {M.assetsTotal ? ((M.liabTotal / M.assetsTotal) * 100).toFixed(0) : 0}<span style={{ fontSize: 16, color: C.mut }}>%</span>
                   </div>
                   <div style={{ fontSize: 12, color: C.mut2, lineHeight: 1.5 }}>of your assets are financed by debt. The rest, {compact(M.assetsTotal - M.liabTotal)}, is equity.</div>
@@ -427,6 +443,13 @@ export default function FinanceDashboard() {
           <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 22 }}>
             Every figure is editable and saves automatically · totals, net worth & runway recalculate instantly
           </div>
+          {importOpen && (
+            <ImportModal
+              targets={[...data.accounts.map((a) => ({ type: "account", id: a.id, name: a.name })), ...data.cards.map((c) => ({ type: "card", id: c.id, name: c.name }))]}
+              onApply={applyImport}
+              onClose={() => setImportOpen(false)}
+            />
+          )}
         </div>
       </div>
     </ThemeCtx.Provider>
@@ -459,12 +482,12 @@ function Stat({ label, value, icon, accent }) {
   return (
     <Card style={{ padding: "13px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: accent ? C.neg : C.mut, fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em" }}>{icon}{label}</div>
-      <div style={{ fontFamily: "'Fraunces',serif", fontSize: 23, fontWeight: 500, marginTop: 5, letterSpacing: "-.01em", color: accent ? C.neg : C.text }}>{value}</div>
+      <div style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 23, fontWeight: 700, marginTop: 5, letterSpacing: "-.01em", fontVariantNumeric: "tabular-nums", color: accent ? C.neg : C.text }}>{value}</div>
     </Card>
   );
 }
 function Total({ v, color }) {
-  return <span style={{ fontFamily: "'Fraunces',serif", fontSize: 16, color, fontVariantNumeric: "tabular-nums" }}>{money0(v)}</span>;
+  return <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 16, color, fontVariantNumeric: "tabular-nums" }}>{money0(v)}</span>;
 }
 function AutoRow({ icon, label, v }) {
   const C = useC();
@@ -668,6 +691,154 @@ function Field({ label, children }) {
     <div style={{ flex: 1 }}>
       <div style={{ fontSize: 10, color: C.mut2, marginBottom: 1 }}>{label}</div>
       <div style={{ display: "flex", alignItems: "center", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "2px 6px" }}>{children}</div>
+    </div>
+  );
+}
+
+/* ------------------------------ CSV import ------------------------------- */
+function parseCSV(text) {
+  const rows = []; let row = []; let field = ""; let inQ = false; let i = 0;
+  const pushF = () => { row.push(field); field = ""; };
+  const pushR = () => { rows.push(row); row = []; };
+  while (i < text.length) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ",") pushF();
+      else if (c === "\n") { pushF(); pushR(); }
+      else if (c === "\r") { /* skip */ }
+      else field += c;
+    }
+    i++;
+  }
+  if (field.length > 0 || row.length > 0) { pushF(); pushR(); }
+  const clean = rows.filter((r) => r.some((x) => x !== "" && x != null));
+  if (!clean.length) return { headers: [], rows: [] };
+  const headers = clean[0].map((h) => (h || "").trim());
+  const dataRows = clean.slice(1).map((r) => { const o = {}; headers.forEach((h, idx) => (o[h] = (r[idx] ?? "").trim())); return o; });
+  return { headers, rows: dataRows };
+}
+function pnum(v) {
+  if (v == null) return NaN;
+  let s = String(v).trim(); let neg = false;
+  if (/^\(.*\)$/.test(s)) neg = true;
+  s = s.replace(/[(),$\s]/g, "").replace(/[^0-9.\-]/g, "");
+  const n = parseFloat(s);
+  if (isNaN(n)) return NaN;
+  return neg ? -Math.abs(n) : n;
+}
+function findCol(headers, keys) {
+  for (const h of headers) { const lh = (h || "").toLowerCase(); if (keys.some((k) => lh.includes(k))) return h; }
+  return null;
+}
+
+function ImportModal({ targets, onApply, onClose }) {
+  const C = useC();
+  const [targetId, setTargetId] = useState(targets[0]?.id || "");
+  const [parsed, setParsed] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [cardField, setCardField] = useState("balance");
+  const [fileName, setFileName] = useState("");
+  const [err, setErr] = useState(null);
+  const target = targets.find((t) => t.id === targetId) || targets[0];
+
+  function handleFile(file) {
+    if (!file) return;
+    setErr(null); setFileName(file.name);
+    const reader = new FileReader();
+    reader.onerror = () => setErr("Couldn't read that file.");
+    reader.onload = () => {
+      try {
+        const { headers, rows } = parseCSV(String(reader.result));
+        if (!rows.length) { setErr("No rows found in that file."); setParsed(null); return; }
+        const amountCol = findCol(headers, ["amount", "amt"]);
+        const balanceCol = findCol(headers, ["balance"]);
+        const dateCol = findCol(headers, ["date", "posted", "time"]);
+        let sum = null;
+        if (amountCol) sum = rows.reduce((s, r) => { const n = pnum(r[amountCol]); return s + (isNaN(n) ? 0 : n); }, 0);
+        let latest = null;
+        if (balanceCol) {
+          let best = rows[0];
+          if (dateCol) { let bestT = -Infinity; rows.forEach((r) => { const t = Date.parse(r[dateCol]); if (!isNaN(t) && t >= bestT) { bestT = t; best = r; } }); }
+          const n = pnum(best[balanceCol]); latest = isNaN(n) ? null : n;
+        }
+        setParsed({ rowCount: rows.length, amountCol, balanceCol, dateCol, sum, latest });
+        const t = targets.find((x) => x.id === targetId) || targets[0];
+        const def = t?.type === "account" ? (latest != null ? latest : sum) : (latest != null ? latest : (sum != null ? Math.abs(sum) : null));
+        setAmount(def == null ? "" : String(Math.round(def * 100) / 100));
+      } catch (e) { setErr("That didn't parse as a CSV."); setParsed(null); }
+    };
+    reader.readAsText(file);
+  }
+
+  function apply() {
+    const v = parseFloat(String(amount).replace(/[^0-9.\-]/g, "")) || 0;
+    onApply(target, target.type === "card" ? cardField : "amount", v);
+    onClose();
+  }
+
+  const box = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, color: C.text, fontFamily: "'Hanken Grotesk', sans-serif" };
+  const sel = { background: C.bg2, color: C.text, border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 10px", fontFamily: "inherit", fontSize: 14, width: "100%" };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "grid", placeItems: "center", zIndex: 1000, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...box, width: 460, maxWidth: "94vw", padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
+          <Upload size={18} color={C.accent} />
+          <div style={{ fontSize: 17, fontWeight: 600 }}>Import CSV</div>
+        </div>
+        <div style={{ fontSize: 12.5, color: C.mut, marginBottom: 18 }}>Export a CSV from your bank, AMEX, Robinhood, or Venmo, then bring its numbers in here.</div>
+
+        <div style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>1 · Which account or card?</div>
+        <select value={targetId} onChange={(e) => { setTargetId(e.target.value); setParsed(null); setAmount(""); setFileName(""); }} style={{ ...sel, marginBottom: 16 }}>
+          {targets.map((t) => <option key={t.id} value={t.id}>{t.type === "card" ? "💳 " : "🏦 "}{t.name}</option>)}
+        </select>
+
+        <div style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>2 · Choose the file</div>
+        <label style={{ display: "block", border: `1px dashed ${C.line2 || C.line}`, borderRadius: 10, padding: "16px", textAlign: "center", cursor: "pointer", color: C.mut, fontSize: 13, marginBottom: 16 }}>
+          <input type="file" accept=".csv,text/csv,text/plain" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files?.[0])} />
+          {fileName ? <span style={{ color: C.text }}>{fileName}</span> : "Click to pick a .csv file"}
+        </label>
+
+        {err && <div style={{ color: C.neg, fontSize: 12.5, marginBottom: 12 }}>{err}</div>}
+
+        {parsed && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>3 · Confirm the number</div>
+            <div style={{ background: C.bg2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "12px 13px", fontSize: 12.5, color: C.mut, marginBottom: 12, lineHeight: 1.7 }}>
+              Read <b style={{ color: C.text }}>{parsed.rowCount}</b> rows.
+              {parsed.latest != null && <> Most recent balance: <b style={{ color: C.text }}>{money0(parsed.latest)}</b>.</>}
+              {parsed.sum != null && <> Sum of amounts: <b style={{ color: C.text }}>{money0(parsed.sum)}</b>.</>}
+              {parsed.latest == null && parsed.sum == null && <span style={{ color: C.neg }}> No "amount" or "balance" column detected — type the value manually below.</span>}
+            </div>
+
+            {target.type === "card" && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {[["balance", "Balance owed"], ["payment", "Monthly payment"]].map(([v, label]) => (
+                  <button key={v} onClick={() => setCardField(v)} style={{ flex: 1, padding: "8px", fontFamily: "inherit", fontSize: 12, background: cardField === v ? C.accent : "transparent", color: cardField === v ? "#fff" : C.mut, border: `1px solid ${cardField === v ? C.accent : C.line}`, borderRadius: 8, cursor: "pointer" }}>{label}</button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: C.mut, marginBottom: 5 }}>
+              {target.type === "account" ? "Set this account's balance to:" : cardField === "payment" ? "Set this card's monthly payment to:" : "Set this card's balance owed to:"}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", background: C.bg2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "0 10px" }}>
+              <span style={{ color: C.mut2, fontSize: 15 }}>$</span>
+              <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.\-]/g, ""))} inputMode="decimal"
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 18, fontWeight: 700, padding: "10px 6px", fontFamily: "'Hanken Grotesk', sans-serif", fontVariantNumeric: "tabular-nums" }} />
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+          <button onClick={onClose} style={{ padding: "9px 16px", background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, fontFamily: "inherit", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          <button onClick={apply} disabled={!parsed && !amount} style={{ padding: "9px 18px", background: C.accent, border: "none", color: "#fff", borderRadius: 9, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: (!parsed && !amount) ? .5 : 1 }}>Apply</button>
+        </div>
+      </div>
     </div>
   );
 }
