@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
+import Vision from "./pages/Vision.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
@@ -38,11 +39,11 @@ const MODULES = [
     sub: [{ t: "Meals", d: "plan & log" }, { t: "Order Groceries", d: "restock the kitchen" }, { t: "Order Food", d: "delivery & takeout" }, { t: "Goals", d: "macros & intake" }, { t: "Supplements", d: "nutrition stack" }] },
   { id: "style", tab: "STYLE", title: "Style", icon: Shirt,
     sub: [{ t: "Categories", d: "organize the wardrobe" }, { t: "My Closet", d: "everything you own" }, { t: "AI Outfit Picker", d: "dressed by algorithm" }] },
-  { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target,
+  { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target, isVision: true,
     sub: [{ t: "Vision Board", d: "images · text · drawing — anything goes" }] },
   { id: "vehicles", tab: "VEHICLES", title: "Vehicles", icon: Car, sub: [{ t: "Linked Vehicles", d: "connect & monitor" }] },
   { id: "home", tab: "HOME", title: "Home Controls", icon: House, sub: [{ t: "Linked Home", d: "lights · climate · security" }] },
-  { id: "amazon", tab: "AMAZON", title: "Amazon", icon: ShoppingCart, sub: [{ t: "Amazon", d: "shop in an embedded browser" }] },
+  { id: "amazon", tab: "AMAZON", title: "Amazon", icon: ShoppingCart, isLink: true, url: "https://www.amazon.com" },
   { id: "socials", tab: "SOCIALS", title: "Socials", icon: AtSign, sub: [{ t: "Linked Socials", d: "all feeds, one place" }] },
   { id: "ai", tab: "AI", title: "AI Assistant", icon: Bot, isAi: true, sub: [{ t: "Chat", d: "Claude · ChatGPT · Grok", live: true }] },
 ];
@@ -140,7 +141,7 @@ export default function App() {
           {MODULES.map((m) => {
             const on = active === m.id;
             return (
-              <button key={m.id} className="navlink" onClick={() => { setActive(m.id); setFilter("All"); }} style={{
+              <button key={m.id} className="navlink" onClick={() => { if (m.isLink) { window.open(m.url, "_blank", "noopener,noreferrer"); return; } setActive(m.id); setFilter("All"); }} style={{
                 flex: "1 1 0", textAlign: "center", padding: "13px 8px", fontFamily: "inherit", fontSize: 10.5, fontWeight: 500,
                 letterSpacing: ".2em", textTransform: "uppercase", whiteSpace: "nowrap", background: on ? T.bg2 : "transparent",
                 border: "none", borderBottom: `2px solid ${on ? T.ember : "transparent"}`, color: on ? T.ember : T.dim, cursor: "pointer", marginBottom: -1, transition: "color .15s",
@@ -157,6 +158,8 @@ export default function App() {
             <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
           ) : mod.isSchedule ? (
             <Schedule />
+          ) : mod.isVision ? (
+            <Vision />
           ) : mod.isAi ? (
             <AiChat />
           ) : (
