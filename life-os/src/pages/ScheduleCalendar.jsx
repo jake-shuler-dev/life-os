@@ -132,9 +132,9 @@ export default function ScheduleCalendar({ view, setView }) {
   for (let i = 0; i < 42; i++) { const d = addDays(start, i); cells.push({ d, k: key(d), out: d.getMonth() !== viewMonth.getMonth(), today: key(d) === key(today), shade: showMine ? shadeOf(d) : { t: "none" } }); }
   const dayEvents = events.filter((e) => e.date === selectedDate && show(e));
   const selD = new Date(selectedDate + "T00:00"), isSelToday = selectedDate === key(today);
-  const weekStart = startOfWeek(today);
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const weekEnd = weekDays[6];
+  const weekDays = Array.from({ length: 6 }, (_, i) => addDays(today, i + 1));
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[5];
 
   const subNav = (
     <div style={{ display: "flex", gap: 5, background: T.panel, border: "1px solid " + T.line, borderRadius: 9, padding: 3 }}>
