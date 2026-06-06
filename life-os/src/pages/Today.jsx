@@ -65,18 +65,28 @@ export default function Today() {
     setAgenda(all);
   }
   async function loadFinance() {
-    try { const r = await window.storage.get("finance_data_v3", false); if (!r || !r.value) { setFin({ cash: 0, card: 0, due: [] }); return; }
-      const f = JSON.parse(r.value);
+    try { const r = await window.storage.get("finance_data_v3", false); if (!r || !r.value) { setFin({ cash: 0, runway: Infinity }); return; }
+      const f = JSON.parse(r.value); const S = f.settings || {};
+      const eff = (e) => (+e.amount || 0) * (e.split ? (S.householdSplit != null ? S.householdSplit : 1) : 1);
+      const income = (f.income || []).reduce((s, i) => s + (+i.amount || 0), 0);
+      const itemized = (f.expenses || []).reduce((s, e) => s + eff(e), 0);
+      const tagged = {}; (f.expenses || []).forEach((e) => { if (e.acct) tagged[e.acct] = (tagged[e.acct] || 0) + (+e.amount || 0); });
+      const cardRemainder = (f.cards || []).reduce((s, c) => { const pay = c.payment || 0; return s + (pay > 0 ? pay - (tagged[c.name] || 0) : 0); }, 0);
+      const annualMo = (f.annual || []).reduce((s, a) => s + (+a.amount || 0), 0) / 12;
+      const out = itemized + cardRemainder + (S.includeAnnual ? annualMo : 0);
+      const net = income - out;
       const cash = (f.accounts || []).reduce((s, a) => s + (+a.amount || 0), 0);
-      const card = (f.cards || []).reduce((s, c) => s + (+c.balance || 0), 0);
-      const due = (f.cards || []).filter((c) => { if (!c.due) return false; const d = String(c.due).trim(); if (/^\d{1,2}$/.test(d)) return +d === today.getDate(); const t = Date.parse(d); if (!isNaN(t)) { const dd = new Date(t); return dd.getMonth() === today.getMonth() && dd.getDate() === today.getDate(); } return false; }).map((c) => ({ name: c.name, amount: c.payment || c.balance }));
-      setFin({ cash, card, due });
-    } catch (e) { setFin({ cash: 0, card: 0, due: [] }); }
+      const runway = net < 0 ? cash / Math.abs(net) : Infinity;
+      setFin({ cash, runway });
+    } catch (e) { setFin({ cash: 0, runway: Infinity }); }
   }
   async function loadWeather() {
-    try { const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.925&longitude=-86.869&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto");
+    try { const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.925&longitude=-86.869&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto");
       const d = await r.json();
-      setWeather({ now: Math.round(d.current.temperature_2m), code: d.current.weather_code, hi: Math.round(d.daily.temperature_2m_max[0]), lo: Math.round(d.daily.temperature_2m_min[0]), pop: d.daily.precipitation_probability_max[0] });
+      const hours = []; const times = (d.hourly && d.hourly.time) || []; const nowMs = Date.now();
+      let start = times.findIndex((t) => new Date(t).getTime() >= nowMs); if (start < 0) start = 0;
+      for (let i = start; i < times.length && hours.length < 6; i += 2) hours.push({ t: times[i], temp: Math.round(d.hourly.temperature_2m[i]), code: d.hourly.weather_code[i], pop: d.hourly.precipitation_probability ? d.hourly.precipitation_probability[i] : 0 });
+      setWeather({ now: Math.round(d.current.temperature_2m), code: d.current.weather_code, hi: Math.round(d.daily.temperature_2m_max[0]), lo: Math.round(d.daily.temperature_2m_min[0]), pop: d.daily.precipitation_probability_max[0], hours });
     } catch (e) { setWeather(null); }
   }
   async function loadNews() {
@@ -119,9 +129,24 @@ export default function Today() {
         )}
       </div>
 
+      {/* today's forecast */}
+      {weather && weather.hours && weather.hours.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: "12px 16px", marginBottom: 14, overflowX: "auto" }}>
+          <div style={{ ...lbl, marginBottom: 0, whiteSpace: "nowrap" }}>Today's forecast</div>
+          {weather.hours.map((h, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 54, paddingLeft: 10, borderLeft: "1px solid " + T.line }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: T.faint }}>{new Date(h.t).toLocaleTimeString("en-US", { hour: "numeric" })}</span>
+              <span style={{ fontSize: 17 }}>{wx(h.code).e}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{h.temp}°</span>
+              {h.pop >= 20 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.dim }}>{h.pop}%</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* mantra */}
       <div style={{ background: "linear-gradient(135deg,#17171B,#141417)", border: "1px solid " + T.line, borderRadius: 15, padding: "18px 22px", display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
-        <Sparkles size={18} color={T.mine} style={{ flexShrink: 0 }} />
+        <Sparkles size={18} color={T.ember} style={{ flexShrink: 0 }} />
         {editMantra ? (
           <>
             <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { save({ ...data, mantra: draft }); setEditMantra(false); } }} placeholder="Enter a mantra for now…" style={{ flex: 1, background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 8, padding: "9px 12px", fontFamily: "'Fraunces',serif", fontSize: 18, outline: "none" }} />
@@ -145,7 +170,7 @@ export default function Today() {
               {agenda.map((a, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: i < agenda.length - 1 ? "1px solid " + T.line : "none" }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.dim, width: 64, flexShrink: 0 }}>{a.time && !String(a.time).toLowerCase().includes("all") ? a.time : "All day"}</span>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: a.kind === "event" ? T.cool : T.good, flexShrink: 0 }} />
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: a.kind === "event" ? T.ember : "transparent", border: "1px solid " + T.ember, flexShrink: 0 }} />
                   <span style={{ fontSize: 13.5, flex: 1 }}>{a.title}</span>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.faint, textTransform: "uppercase", letterSpacing: ".06em" }}>{a.kind}</span>
                 </div>
@@ -156,21 +181,16 @@ export default function Today() {
 
         {/* right stack: finance + health */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Panel title="Finance" Icon={Wallet} accent={T.good}>
+          <Panel title="Finance" Icon={Wallet} accent={T.ember}>
             {fin == null ? <Muted>Loading…</Muted> : (
-              <div>
-                <div style={{ display: "flex", gap: 22 }}>
-                  <div><div style={lbl}>Cash on hand</div><div style={{ fontSize: 24, fontWeight: 600 }}>{money(fin.cash)}</div></div>
-                  <div><div style={lbl}>Card balance</div><div style={{ fontSize: 24, fontWeight: 600, color: fin.card > 0 ? T.warm : T.text }}>{money(fin.card)}</div></div>
-                </div>
-                <div style={{ ...lbl, marginTop: 14 }}>Due today</div>
-                {fin.due.length === 0 ? <div style={{ fontSize: 13, color: T.dim }}>Nothing due today.</div>
-                  : fin.due.map((d, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}><span>{d.name}</span><span style={{ color: T.warm, fontWeight: 600 }}>{money(d.amount)}</span></div>)}
+              <div style={{ display: "flex", gap: 28 }}>
+                <div><div style={lbl}>Total cash</div><div style={{ fontSize: 28, fontWeight: 600 }}>{money(fin.cash)}</div></div>
+                <div><div style={lbl}>Cash runway</div><div style={{ fontSize: 28, fontWeight: 600 }}>{isFinite(fin.runway) ? fin.runway.toFixed(1) + " mo" : "growing"}</div></div>
               </div>
             )}
           </Panel>
 
-          <Panel title="Health" Icon={HeartPulse} accent="#F2585F" pill="Coming online">
+          <Panel title="Health" Icon={HeartPulse} accent={T.ember} pill="Coming online">
             <Muted>WHOOP recovery, strain &amp; sleep — plus today's supplement timing and workout — land here once WHOOP is connected and the Health module is built.</Muted>
           </Panel>
         </div>
@@ -178,30 +198,30 @@ export default function Today() {
 
       <div className="t3">
         {/* style */}
-        <Panel title="Style" Icon={Shirt} accent={T.music}>
+        <Panel title="Style" Icon={Shirt} accent={T.ember}>
           <div style={lbl}>Dress level</div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 11 }}>
-            {["Casual", "Smart Casual", "Business", "Formal"].map((f) => <button key={f} onClick={() => setFormality(f)} style={seg(formality === f, T.music)}>{f}</button>)}
+            {["Casual", "Smart Casual", "Business", "Formal"].map((f) => <button key={f} onClick={() => setFormality(f)} style={seg(formality === f, T.ember)}>{f}</button>)}
           </div>
-          <button onClick={suggestStyle} disabled={styleBusy} style={aiBtn(T.music)}>{styleBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest outfit</button>
+          <button onClick={suggestStyle} disabled={styleBusy} style={aiBtn(T.ember)}>{styleBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest outfit</button>
           {styleText && <pre style={pre}>{styleText}</pre>}
         </Panel>
 
         {/* food */}
-        <Panel title="Food & Hydration" Icon={Utensils} accent={T.cool}>
+        <Panel title="Food & Hydration" Icon={Utensils} accent={T.ember}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Droplet size={16} color={T.cool} />
+            <Droplet size={16} color={T.ember} />
             <span style={{ fontSize: 13, color: T.dim, flex: 1 }}>Aim ~100 oz today</span>
             <button onClick={() => setGlasses(hyd.glasses - 1)} style={iconMini}><Minus size={13} /></button>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, minWidth: 58, textAlign: "center" }}>{hyd.glasses} × 12oz</span>
             <button onClick={() => setGlasses(hyd.glasses + 1)} style={iconMini}><Plus size={13} /></button>
           </div>
-          <button onClick={suggestMeals} disabled={mealBusy} style={aiBtn(T.cool)}>{mealBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest meals</button>
+          <button onClick={suggestMeals} disabled={mealBusy} style={aiBtn(T.ember)}>{mealBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest meals</button>
           {mealText && <pre style={pre}>{mealText}</pre>}
         </Panel>
 
         {/* news */}
-        <Panel title="Briefing" Icon={Newspaper} accent={T.warm}>
+        <Panel title="Briefing" Icon={Newspaper} accent={T.ember}>
           {news == null ? <Muted>Loading headlines…</Muted> : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[["Sports", news.sports], ["Music", news.music], ["Pop Culture", news.pop]].map(([label, items]) => (
