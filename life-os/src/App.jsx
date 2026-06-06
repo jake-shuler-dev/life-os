@@ -3,7 +3,7 @@ import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
   House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot,
 } from "lucide-react";
-import FinanceDashboard from "./pages/FinanceDashboard.jsx";
+import Finance from "./pages/Finance.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
@@ -153,7 +153,7 @@ export default function App() {
           {active === null ? (
             <Home dateStr={dateStr} />
           ) : mod.isFinance ? (
-            <div className="rise" style={{ marginTop: 18 }}><FinanceDashboard /></div>
+            <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
           ) : mod.isAi ? (
             <AiChat />
           ) : (

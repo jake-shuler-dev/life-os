@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from "recharts";
 import {
   TrendingUp, TrendingDown, Plus, X, Wallet, Building2, Landmark, CalendarClock,
-  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, Scale, Upload,
+  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, Scale, Upload, Table2,
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
@@ -137,7 +137,7 @@ function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false
 }
 
 /* --------------------------------- app ----------------------------------- */
-export default function FinanceDashboard() {
+export default function FinanceDashboard({ onEdit }) {
   const [data, setData] = useState(SEED);
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -249,6 +249,12 @@ export default function FinanceDashboard() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
+              {onEdit && (
+                <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  <Table2 size={13} /> Edit data
+                </button>
+              )}
               <button onClick={() => setImportOpen(true)} title="Import a CSV from your bank, card, Robinhood, or Venmo"
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                 <Upload size={13} /> Import CSV
