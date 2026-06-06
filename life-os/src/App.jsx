@@ -6,6 +6,7 @@ import {
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import Vision from "./pages/Vision.jsx";
+import HomeControls from "./pages/HomeControls.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
@@ -42,7 +43,7 @@ const MODULES = [
   { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target, isVision: true,
     sub: [{ t: "Vision Board", d: "images · text · drawing — anything goes" }] },
   { id: "vehicles", tab: "VEHICLES", title: "Vehicles", icon: Car, sub: [{ t: "Linked Vehicles", d: "connect & monitor" }] },
-  { id: "home", tab: "HOME", title: "Home Controls", icon: House, sub: [{ t: "Linked Home", d: "lights · climate · security" }] },
+  { id: "home", tab: "HOME", title: "Home Controls", icon: House, isHome: true },
   { id: "amazon", tab: "AMAZON", title: "Amazon", icon: ShoppingCart, isLink: true, url: "https://www.amazon.com" },
   { id: "socials", tab: "SOCIALS", title: "Socials", icon: AtSign, sub: [{ t: "Linked Socials", d: "all feeds, one place" }] },
   { id: "ai", tab: "AI", title: "AI Assistant", icon: Bot, isAi: true, sub: [{ t: "Chat", d: "Claude · ChatGPT · Grok", live: true }] },
@@ -160,6 +161,8 @@ export default function App() {
             <Schedule />
           ) : mod.isVision ? (
             <Vision />
+          ) : mod.isHome ? (
+            <HomeControls />
           ) : mod.isAi ? (
             <AiChat />
           ) : (
