@@ -4,9 +4,9 @@ import { supabase } from "../lib/supabase.js";
 
 const STORE_KEY = "schedule_v1";
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", text: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", mine: "#F2B45C", neg: "#F2585F", good: "#54D6A0",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", mine: "#F2B45C", neg: "var(--neg)", good: "var(--good)",
 };
 const PALETTE = ["#7C84FF", "#FF5A1F", "#54D6A0", "#FFB020", "#E0567B", "#3CC8E0", "#B388FF"];
 const DEFAULT = {
@@ -319,10 +319,10 @@ export default function ScheduleCalendar({ view, setView }) {
   );
 }
 
-const navBtn = { background: "#17171B", border: "1px solid #34343D", color: "#8C8C95", width: 27, height: 27, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
-const xBtn = { marginLeft: "auto", background: "none", border: "none", color: "#56565E", cursor: "pointer", fontSize: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" };
+const navBtn = { background: "var(--panel)", border: "1px solid var(--line2)", color: "var(--dim)", width: 27, height: 27, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+const xBtn = { marginLeft: "auto", background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" };
 const btnMine = { width: "100%", background: "#F2B45C", border: "none", color: "#1a1206", borderRadius: 7, padding: "7px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer", fontWeight: 700 };
-const btnGhost = { width: "100%", marginTop: 7, background: "#0E0E10", border: "1px solid #34343D", color: "#8C8C95", borderRadius: 8, padding: 7, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" };
-const hintStyle = { fontSize: 10, color: "#56565E", marginTop: 11, lineHeight: 1.5, borderTop: "1px solid #27272E", paddingTop: 10 };
-function H({ children, mt }) { return <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: ".16em", color: "#56565E", textTransform: "uppercase", marginBottom: 9, marginTop: mt ? 13 : 0, borderTop: mt ? "1px solid #27272E" : "none", paddingTop: mt ? 11 : 0 }}>{children}</div>; }
+const btnGhost = { width: "100%", marginTop: 7, background: "var(--bg)", border: "1px solid var(--line2)", color: "var(--dim)", borderRadius: 8, padding: 7, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" };
+const hintStyle = { fontSize: 10, color: "var(--faint)", marginTop: 11, lineHeight: 1.5, borderTop: "1px solid var(--line)", paddingTop: 10 };
+function H({ children, mt }) { return <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, letterSpacing: ".16em", color: "var(--faint)", textTransform: "uppercase", marginBottom: 9, marginTop: mt ? 13 : 0, borderTop: mt ? "1px solid var(--line)" : "none", paddingTop: mt ? 11 : 0 }}>{children}</div>; }
 function Row({ children }) { return <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, flexWrap: "wrap" }}>{children}</div>; }

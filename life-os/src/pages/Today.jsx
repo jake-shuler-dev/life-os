@@ -3,9 +3,9 @@ import { Pencil, Trash2, Check, X, CalendarClock, Wallet, HeartPulse, Shirt, Ute
 import { supabase } from "../lib/supabase.js";
 
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", text: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", good: "#54D6A0", cool: "#3CC8E0", warm: "#FFB020", music: "#7C84FF", mine: "#F2B45C",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", good: "var(--good)", cool: "#3CC8E0", warm: "#FFB020", music: "#7C84FF", mine: "#F2B45C",
 };
 const STORE = "today_v1";
 const key = (d) => d.toISOString().slice(0, 10);
@@ -159,7 +159,7 @@ export default function Today() {
       )}
 
       {/* mantra */}
-      <div style={{ background: "linear-gradient(135deg,#17171B,#141417)", border: "1px solid " + T.line, borderRadius: 15, padding: "18px 22px", display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+      <div style={{ background: "linear-gradient(135deg,var(--panel),var(--bg2))", border: "1px solid " + T.line, borderRadius: 15, padding: "18px 22px", display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
         <Sparkles size={18} color={T.ember} style={{ flexShrink: 0 }} />
         {editMantra ? (
           <>
@@ -281,10 +281,10 @@ function Panel({ title, Icon, accent, children, pill }) {
   );
 }
 function Muted({ children }) { return <div style={{ fontSize: 12.5, color: T.faint, fontStyle: "italic", lineHeight: 1.5 }}>{children}</div>; }
-const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "#56565E", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 };
-const pre = { whiteSpace: "pre-wrap", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "#C9C9CE", lineHeight: 1.55, marginTop: 11, background: "#0E0E10", border: "1px solid #27272E", borderRadius: 9, padding: "11px 13px" };
-const iconBtn = { background: "transparent", border: "1px solid #34343D", color: "#8C8C95", width: 32, height: 32, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
-const iconMini = { background: "transparent", border: "1px solid #34343D", color: "#8C8C95", width: 26, height: 26, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
-function seg(on, c) { return { padding: "6px 11px", borderRadius: 7, border: "1px solid " + (on ? c : "#34343D"), background: on ? c : "transparent", color: on ? "#0E0E10" : "#8C8C95", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", cursor: "pointer" }; }
+const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--faint)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 };
+const pre = { whiteSpace: "pre-wrap", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "var(--text)", lineHeight: 1.55, marginTop: 11, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 9, padding: "11px 13px" };
+const iconBtn = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+const iconMini = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 26, height: 26, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+function seg(on, c) { return { padding: "6px 11px", borderRadius: 7, border: "1px solid " + (on ? c : "var(--line2)"), background: on ? c : "transparent", color: on ? "#0E0E10" : "var(--dim)", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", cursor: "pointer" }; }
 function aiBtn(c) { return { display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: "1px solid " + c, color: c, borderRadius: 9, padding: "8px 13px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" }; }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }

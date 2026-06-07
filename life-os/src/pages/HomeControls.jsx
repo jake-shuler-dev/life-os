@@ -3,9 +3,9 @@ import { Thermometer, Flame, Snowflake, Leaf, Power, Video, Shield, Lightbulb, M
 import { supabase } from "../lib/supabase.js";
 
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", text: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", good: "#54D6A0", cool: "#3CC8E0", warm: "#FFB020", music: "#7C84FF",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", good: "var(--good)", cool: "#3CC8E0", warm: "#FFB020", music: "#7C84FF",
 };
 const SONOS_STORE = "sonos_v1";
 
@@ -205,8 +205,8 @@ function Card({ id, title, Icon, accent, children, note, connectLabel, onConnect
   );
 }
 
-const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "#56565E", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 };
+const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "var(--faint)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 };
 const bigTemp = { fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 40, fontWeight: 600, lineHeight: 1 };
-const iconBtn = { background: "#17171B", border: "1px solid #34343D", color: "#8C8C95", width: 30, height: 30, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
-function chip(on, c) { return { display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, fontSize: 9.5, fontFamily: "'JetBrains Mono',monospace", textTransform: "uppercase", letterSpacing: ".05em", background: on ? c : "transparent", color: on ? "#0E0E10" : "#8C8C95", border: "1px solid " + (on ? c : "#34343D") }; }
+const iconBtn = { background: "var(--panel)", border: "1px solid var(--line2)", color: "var(--dim)", width: 30, height: 30, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+function chip(on, c) { return { display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, fontSize: 9.5, fontFamily: "'JetBrains Mono',monospace", textTransform: "uppercase", letterSpacing: ".05em", background: on ? c : "transparent", color: on ? "#0E0E10" : "var(--dim)", border: "1px solid " + (on ? c : "var(--line2)") }; }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }

@@ -8,8 +8,8 @@ const CATS = ["Household", "Housing", "Food", "Health", "Subscriptions", "Obliga
 const FREQS = ["Annual", "Semiannual", "Quarterly", "Custom"];
 
 const C = {
-  bg: "#141417", bg2: "#1A1A1F", panel: "#212127", line: "#2F2F38", line2: "#3A3A45",
-  text: "#ECECEF", mut: "#8A8A95", mut2: "#6B6B75", accent: "#FF6B2C", pos: "#54D6A0", neg: "#F2585F", amber: "#FFB020",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", line: "var(--line)", line2: "var(--line2)",
+  text: "var(--text)", mut: "var(--dim)", mut2: "var(--faint)", accent: "var(--ember)", pos: "var(--pos)", neg: "var(--neg)", amber: "#FFB020",
 };
 const money = (n) => "$" + Math.round(+n || 0).toLocaleString("en-US");
 const fmtNum = (n) => { const v = +n || 0; return v === 0 ? "" : v.toLocaleString("en-US", { maximumFractionDigits: 2 }); };

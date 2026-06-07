@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
@@ -14,9 +14,9 @@ import { supabase, supabaseReady } from "./lib/supabase.js";
 
 /* ------------------------------- palette --------------------------------- */
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", bright: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", emberDim: "rgba(255,90,31,.14)", good: "#54D6A0",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", bright: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", emberDim: "var(--emberDim)", good: "var(--good)",
 };
 
 /* ------------------------------- modules --------------------------------- */
@@ -55,6 +55,11 @@ export default function App() {
   const [filter, setFilter] = useState("All");
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+
+  const [theme, setTheme] = useState("dark");
+  useEffect(() => { (async () => { try { const r = await window.storage.get("ui_theme_v1", false); if (r && (r.value === "light" || r.value === "dark")) setTheme(r.value); } catch (e) {} })(); }, []);
+  useEffect(() => { document.body.className = theme === "light" ? "theme-light" : "theme-dark"; }, [theme]);
+  const toggleTheme = () => setTheme((p) => { const next = p === "light" ? "dark" : "light"; try { window.storage.set("ui_theme_v1", next, false); } catch (e) {} return next; });
 
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(!supabaseReady);
@@ -128,6 +133,9 @@ export default function App() {
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 9.5, letterSpacing: ".18em", color: T.good, borderLeft: `1px solid ${T.line2}`, paddingLeft: 16 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.good, animation: "pulse 2s infinite" }} /> ONLINE
           </span>
+          <button onClick={toggleTheme} title={theme === "light" ? "Switch to dark" : "Switch to light"} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 9px", fontFamily: "inherit", cursor: "pointer" }}>
+            {theme === "light" ? <Moon size={12} /> : <Sun size={12} />}
+          </button>
           <button onClick={toggleFs} title={fs ? "Exit full screen" : "Full screen"} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 9px", fontFamily: "inherit", cursor: "pointer" }}>
             {fs ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
           </button>

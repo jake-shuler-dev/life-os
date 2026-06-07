@@ -3,9 +3,9 @@ import { Plus, Trash2, Repeat, Calendar as Cal } from "lucide-react";
 
 const STORE_KEY = "daily_tasks_v1";
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", text: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", good: "#54D6A0",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", good: "var(--good)",
 };
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const uid = () => Math.random().toString(36).slice(2, 9);

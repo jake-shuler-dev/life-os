@@ -6,18 +6,13 @@ import {
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
-const DARK = {
-  bg: "#141417", bg2: "#1A1A1F", panel: "#212127", panelHi: "#26262E",
-  line: "#2F2F38", lineHi: "#3A3A45", text: "#ECECEF", mut: "#8A8A95", mut2: "#6B6B75",
-  accent: "#FF6B2C", pos: "#54D6A0", neg: "#F2585F", posDim: "#54D6A022", negDim: "#F2585F22", shadow: "none",
+const PAL = {
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", lineHi: "var(--line2)", text: "var(--text)", mut: "var(--dim)", mut2: "var(--faint)",
+  accent: "var(--ember)", pos: "var(--pos)", neg: "var(--neg)", posDim: "var(--posDim)", negDim: "var(--negDim)", shadow: "var(--shadow)",
 };
-const LIGHT = {
-  bg: "#F3F1EC", bg2: "#EBE8E1", panel: "#FFFFFF", panelHi: "#FCFBF9",
-  line: "#E4E0D8", lineHi: "#D6D1C7", text: "#22201D", mut: "#6B675E", mut2: "#A39E93",
-  accent: "#DD5708", pos: "#0E9D63", neg: "#D23B41", posDim: "#0E9D6322", negDim: "#D23B4122",
-  shadow: "0 1px 2px rgba(0,0,0,.05)",
-};
-const ThemeCtx = createContext(DARK);
+const DARK = PAL, LIGHT = PAL;
+const ThemeCtx = createContext(PAL);
 const useC = () => useContext(ThemeCtx);
 
 const CAT_COLORS = {
@@ -255,10 +250,6 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
                   <Table2 size={13} /> Edit data
                 </button>
               )}
-              <button onClick={() => setS({ theme: S.theme === "light" ? "dark" : "light" })} title="Toggle theme"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                {S.theme === "light" ? <Moon size={13} /> : <Sun size={13} />}{S.theme === "light" ? "Dark" : "Light"}
-              </button>
             </div>
           </div>
 

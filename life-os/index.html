@@ -4,8 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Life OS</title>
+    <style>
+      :root, body.theme-dark {
+        --bg:#0E0E10; --bg2:#141417; --panel:#17171B; --panelHi:#1C1C21;
+        --line:#27272E; --line2:#34343D; --text:#F1EFEA; --dim:#8C8C95; --faint:#56565E;
+        --ember:#FF5A1F; --emberDim:rgba(255,90,31,.14); --good:#54D6A0; --pos:#54D6A0; --neg:#F2585F;
+        --posDim:rgba(84,214,160,.13); --negDim:rgba(242,88,95,.13); --shadow:none;
+      }
+      body.theme-light {
+        --bg:#F4F5F7; --bg2:#FFFFFF; --panel:#FFFFFF; --panelHi:#F9FAFB;
+        --line:#E5E7EC; --line2:#D4D8E0; --text:#16181D; --dim:#5A5E67; --faint:#9AA0AA;
+        --ember:#E8501C; --emberDim:rgba(232,80,28,.10); --good:#0E9D63; --pos:#0E9D63; --neg:#D23B41;
+        --posDim:rgba(14,157,99,.12); --negDim:rgba(210,59,65,.11); --shadow:0 1px 3px rgba(20,22,28,.07), 0 1px 2px rgba(20,22,28,.04);
+      }
+      html, body, #root { margin:0; min-height:100%; background:var(--bg); }
+      body { transition: background .25s ease; }
+    </style>
   </head>
-  <body>
+  <body class="theme-dark">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -3,8 +3,8 @@ import { MousePointer2, Pencil, Type, ImagePlus, Trash2, Undo2, Minus, Plus } fr
 
 const STORE_KEY = "vision_v1";
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", text: "#F1EFEA", dim: "#8C8C95", faint: "#56565E", ember: "#FF5A1F",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)", ember: "var(--ember)",
 };
 const SWATCHES = ["#F1EFEA", "#FF5A1F", "#F2B45C", "#54D6A0", "#7C84FF", "#E0567B", "#0E0E10"];
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -216,5 +216,5 @@ export default function Vision() {
 }
 
 function ptsStr(pts) { let s = ""; for (let i = 0; i < pts.length; i += 2) s += pts[i] + "," + pts[i + 1] + " "; return s.trim(); }
-const iconMini = { width: 28, height: 28, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "1px solid #34343D", color: "#8C8C95" };
-const actBtn = { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid #34343D", color: "#8C8C95", borderRadius: 9, padding: "8px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer" };
+const iconMini = { width: 28, height: 28, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)" };
+const actBtn = { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", borderRadius: 9, padding: "8px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer" };
