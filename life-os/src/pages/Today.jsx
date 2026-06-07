@@ -74,20 +74,25 @@ export default function Today() {
   async function loadFinance() {
     try { const r = await window.storage.get("finance_data_v3", false); if (!r || !r.value) { setFin({ cash: 0, runway: Infinity }); return; }
       const f = JSON.parse(r.value); const S = f.settings || {};
-      const eff = (e) => (+e.amount || 0) * (e.split ? (S.householdSplit != null ? S.householdSplit : 1) : 1);
+      const split = S.householdSplit != null ? S.householdSplit : 1;
+      const eff = (e) => e.companyPaid ? 0 : (+e.amount || 0) * (e.split ? split : 1);
       const income = (f.income || []).reduce((s, i) => s + (+i.amount || 0), 0);
       const itemized = (f.expenses || []).reduce((s, e) => s + eff(e), 0);
-      const tagged = {}; (f.expenses || []).forEach((e) => { if (e.acct) tagged[e.acct] = (tagged[e.acct] || 0) + (+e.amount || 0); });
+      const tagged = {}; (f.expenses || []).forEach((e) => { if (e.acct && !e.companyPaid) tagged[e.acct] = (tagged[e.acct] || 0) + (+e.amount || 0); });
       const cardRemainder = (f.cards || []).reduce((s, c) => { const pay = c.payment || 0; return s + (pay > 0 ? pay - (tagged[c.name] || 0) : 0); }, 0);
-      const annualMo = (f.annual || []).reduce((s, a) => s + (a.split ? (+a.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+a.amount || 0)), 0) / 12;
-      const out = itemized + cardRemainder + (S.includeAnnual ? annualMo : 0);
+      const subsList = f.subscriptions || [];
+      const monthlySubs = subsList.reduce((s, x) => s + (x.period === "monthly" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
+      const annualSubs = subsList.reduce((s, x) => s + (x.period === "annual" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
+      const annualMo = ((f.annual || []).reduce((s, a) => s + (a.companyPaid ? 0 : (a.split ? (+a.amount || 0) * split : (+a.amount || 0))), 0) + annualSubs) / 12;
+      const out = itemized + cardRemainder + monthlySubs + (S.includeAnnual ? annualMo : 0);
       const cash = (f.accounts || []).reduce((s, a) => s + (+a.amount || 0), 0);
       const runway = out > 0 ? cash / out : Infinity;
       const start = new Date(today); const end = new Date(today); end.setDate(end.getDate() + 14);
       const clampDay = (y, m, d) => Math.min(d, new Date(y, m + 1, 0).getDate());
       const bills = [];
-      (f.expenses || []).forEach((e) => { const dd = parseInt(e.dueDay, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: e.name || "Expense", amount: (e.split ? (+e.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+e.amount || 0)), date: occ }); });
-      (f.annual || []).forEach((a) => { const toks = String(a.dates || "").split(",").map((s) => s.trim()).filter(Boolean); if (!toks.length) return; const per = (a.split ? (+a.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+a.amount || 0)) / toks.length; toks.forEach((tok) => { const md = parseMD(tok); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: a.name || "Annual", amount: per, date: occ }); }); });
+      (f.expenses || []).forEach((e) => { if (e.companyPaid) return; const dd = parseInt(e.dueDay, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: e.name || "Expense", amount: (e.split ? (+e.amount || 0) * split : (+e.amount || 0)), date: occ }); });
+      (f.annual || []).forEach((a) => { if (a.companyPaid) return; const toks = String(a.dates || "").split(",").map((s) => s.trim()).filter(Boolean); if (!toks.length) return; const per = (a.split ? (+a.amount || 0) * split : (+a.amount || 0)) / toks.length; toks.forEach((tok) => { const md = parseMD(tok); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: a.name || "Annual", amount: per, date: occ }); }); });
+      subsList.forEach((x) => { if (x.companyPaid) return; if (x.period === "monthly") { const dd = parseInt(x.day, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: x.name || "Subscription", amount: +x.amount || 0, date: occ }); } else { const md = parseMD(x.date); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: x.name || "Subscription", amount: +x.amount || 0, date: occ }); } });
       bills.sort((x, y2) => x.date - y2.date);
       setFin({ cash, runway, bills });
     } catch (e) { setFin({ cash: 0, runway: Infinity, bills: [] }); }

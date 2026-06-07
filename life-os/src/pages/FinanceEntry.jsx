@@ -31,8 +31,19 @@ function NumCell({ value, onChange }) {
   );
 }
 
+function SubsBar({ label, total, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 16px", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.accent)} onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.line)}>
+      <span style={{ fontSize: 15 }}>🔁</span>
+      <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, color: C.text }}>{label}<span style={{ color: C.mut, fontWeight: 400, marginLeft: 8, fontSize: 12 }}>manage →</span></span>
+      <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, fontVariantNumeric: "tabular-nums" }}>{money(total)}</span>
+    </button>
+  );
+}
+
 function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, addLabel }) {
-  const total = rows.reduce((s, r) => s + (parseFloat(r[totalKey]) || 0), 0);
+  const total = rows.reduce((s, r) => s + (r.companyPaid ? 0 : (parseFloat(r[totalKey]) || 0)), 0);
   const span = columns.length - 1;
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
@@ -85,7 +96,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
   );
 }
 
-export default function FinanceEntry({ onBack }) {
+export default function FinanceEntry({ onBack, onOpenSubs }) {
   const [full, setFull] = useState(null);
   const [draft, setDraft] = useState(null);
   const [baseline, setBaseline] = useState("");
@@ -109,6 +120,7 @@ export default function FinanceEntry({ onBack }) {
   const upd = (key) => (id, patch) => setRows(key, draft[key].map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const del = (key) => (id) => setRows(key, draft[key].filter((r) => r.id !== id));
   const add = (key, blank) => () => setRows(key, [...draft[key], { id: uid(), ...blank }]);
+  const subTotal = (period) => ((full && full.subscriptions) || []).reduce((s, x) => s + (x.period === period && !x.companyPaid ? (+x.amount || 0) : 0), 0);
 
   const PAY = [...draft.accounts.map((a) => a.name), ...draft.cards.map((c) => c.name)].filter(Boolean);
 
@@ -173,12 +185,15 @@ export default function FinanceEntry({ onBack }) {
               { key: "acct", label: "Paid With", type: "select", options: PAY },
               { key: "split", label: "Split", type: "check", align: "center" },
               { key: "dueDay", label: "Due day", type: "day", align: "center" },
+              { key: "companyPaid", label: "Company", type: "check", align: "center" },
               { key: "amount", label: "Amount", type: "num", align: "right" },
             ]}
-            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", amount: 0 })} />
+            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", companyPaid: false, amount: 0 })} />
+          <SubsBar label="Monthly subscriptions" total={subTotal("monthly")} onClick={() => onOpenSubs && onOpenSubs("monthly")} />
           <EditTable icon="📅" title="Annual Expenses" totalKey="amount" rows={draft.annual} addLabel="Add annual expense"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
-            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", split: false, amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
+            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", split: false, companyPaid: false, amount: 0 })} />
+          <SubsBar label="Annual subscriptions" total={subTotal("annual")} onClick={() => onOpenSubs && onOpenSubs("annual")} />
         </div>
 
         <div className="fe-group"><span className="fe-glbl">Net Worth</span><span style={{ flex: 1, height: 1, background: C.line }} /></div>
@@ -187,8 +202,8 @@ export default function FinanceEntry({ onBack }) {
             columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Value", type: "num", align: "right" }]}
             onUpd={upd("assets")} onDel={del("assets")} onAdd={add("assets", { name: "", amount: 0 })} />
           <EditTable icon="📉" title="Liabilities" totalKey="amount" rows={draft.liabilities} addLabel="Add liability"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
-            onUpd={upd("liabilities")} onDel={del("liabilities")} onAdd={add("liabilities", { name: "", amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
+            onUpd={upd("liabilities")} onDel={del("liabilities")} onAdd={add("liabilities", { name: "", companyPaid: false, amount: 0 })} />
           <EditTable icon="💰" title="Cash on Hand" totalKey="amount" rows={draft.accounts} addLabel="Add account"
             columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
             onUpd={upd("accounts")} onDel={del("accounts")} onAdd={add("accounts", { name: "", amount: 0 })} />
