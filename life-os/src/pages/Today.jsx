@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Pencil, Trash2, Check, X, CalendarClock, Wallet, HeartPulse, Shirt, Utensils, Newspaper, Droplet, RefreshCw, Sparkles, Plus, Minus } from "lucide-react";
+import { Pencil, Trash2, Check, X, CalendarClock, Wallet, HeartPulse, Shirt, Utensils, Newspaper, Droplet, RefreshCw, Sparkles, Plus, Minus, Receipt } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const T = {
@@ -11,6 +11,13 @@ const STORE = "today_v1";
 const key = (d) => d.toISOString().slice(0, 10);
 const money = (n) => "$" + Math.round(n || 0).toLocaleString();
 
+function parseMD(tok) {
+  const m = String(tok).match(/^(\d{1,2})[\/\-.](\d{1,2})$/);
+  if (m) return { m: +m[1], d: +m[2] };
+  const t = Date.parse(tok + " " + new Date().getFullYear());
+  if (!isNaN(t)) { const d = new Date(t); return { m: d.getMonth() + 1, d: d.getDate() }; }
+  return null;
+}
 function appliesToday(t, d) { if (t.recur === "daily") return true; if (t.recur === "weekly") return (t.days || []).includes(d.getDay()); if (t.recur === "date") return t.date === key(d); return false; }
 function parseClock(t) { if (!t) return null; const s = String(t).trim().toLowerCase(); if (s.includes("all")) return null; const m = s.match(/(\d{1,2})(?::(\d{2}))?\s*([ap])?/); if (!m) return null; let h = +m[1]; const mn = m[2] ? +m[2] : 0; const ap = m[3]; if (ap === "p" && h < 12) h += 12; if (ap === "a" && h === 12) h = 0; return h * 60 + mn; }
 function wx(code) {
@@ -72,12 +79,18 @@ export default function Today() {
       const itemized = (f.expenses || []).reduce((s, e) => s + eff(e), 0);
       const tagged = {}; (f.expenses || []).forEach((e) => { if (e.acct) tagged[e.acct] = (tagged[e.acct] || 0) + (+e.amount || 0); });
       const cardRemainder = (f.cards || []).reduce((s, c) => { const pay = c.payment || 0; return s + (pay > 0 ? pay - (tagged[c.name] || 0) : 0); }, 0);
-      const annualMo = (f.annual || []).reduce((s, a) => s + (+a.amount || 0), 0) / 12;
+      const annualMo = (f.annual || []).reduce((s, a) => s + (a.split ? (+a.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+a.amount || 0)), 0) / 12;
       const out = itemized + cardRemainder + (S.includeAnnual ? annualMo : 0);
       const cash = (f.accounts || []).reduce((s, a) => s + (+a.amount || 0), 0);
       const runway = out > 0 ? cash / out : Infinity;
-      setFin({ cash, runway });
-    } catch (e) { setFin({ cash: 0, runway: Infinity }); }
+      const start = new Date(today); const end = new Date(today); end.setDate(end.getDate() + 14);
+      const clampDay = (y, m, d) => Math.min(d, new Date(y, m + 1, 0).getDate());
+      const bills = [];
+      (f.expenses || []).forEach((e) => { const dd = parseInt(e.dueDay, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: e.name || "Expense", amount: (e.split ? (+e.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+e.amount || 0)), date: occ }); });
+      (f.annual || []).forEach((a) => { const toks = String(a.dates || "").split(",").map((s) => s.trim()).filter(Boolean); if (!toks.length) return; const per = (a.split ? (+a.amount || 0) * (S.householdSplit != null ? S.householdSplit : 1) : (+a.amount || 0)) / toks.length; toks.forEach((tok) => { const md = parseMD(tok); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: a.name || "Annual", amount: per, date: occ }); }); });
+      bills.sort((x, y2) => x.date - y2.date);
+      setFin({ cash, runway, bills });
+    } catch (e) { setFin({ cash: 0, runway: Infinity, bills: [] }); }
   }
   async function loadWeather() {
     try { const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.925&longitude=-86.869&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto");
@@ -182,6 +195,20 @@ export default function Today() {
               <div style={{ display: "flex", gap: 28 }}>
                 <div><div style={lbl}>Total cash</div><div style={{ fontSize: 22, fontWeight: 400 }}>{money(fin.cash)}</div></div>
                 <div><div style={lbl}>Cash runway</div><div style={{ fontSize: 22, fontWeight: 400 }}>{isFinite(fin.runway) ? fin.runway.toFixed(1) + " mo" : "growing"}</div></div>
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Bills Coming Due" Icon={Receipt} accent={T.ember}>
+            {fin == null ? <Muted>Loading…</Muted> : (!fin.bills || fin.bills.length === 0) ? <Muted>Nothing due in the next 14 days.</Muted> : (
+              <div>
+                {fin.bills.map((b, i) => { const d = new Date(b.date); const isT = d.toDateString() === today.toDateString(); return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 2px", borderBottom: i < fin.bills.length - 1 ? "1px solid " + T.line : "none" }}>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: isT ? T.ember : T.dim, width: 60, flexShrink: 0 }}>{isT ? "Today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    <span style={{ fontSize: 13.5, flex: 1 }}>{b.name}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13 }}>{money(b.amount)}</span>
+                  </div>
+                ); })}
               </div>
             )}
           </Panel>

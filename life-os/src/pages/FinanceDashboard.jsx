@@ -98,19 +98,13 @@ function NumInput({ value, onChange, style }) {
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setT(fmtNum(value)); }, [value]);
   return (
-    <input value={t} inputMode="decimal" placeholder="0"
-      onFocus={(e) => { focused.current = true; setT(value === 0 ? "" : String(value)); e.target.select(); }}
-      onBlur={() => { focused.current = false; const n = parseFloat(String(t).replace(/,/g, "")) || 0; onChange(n); setT(fmtNum(n)); }}
-      onChange={(e) => setT(e.target.value.replace(/[^0-9.]/g, ""))}
-      onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
-      style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
+    <span style={{ color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", ...style }}>{fmtNum(value) || "0"}</span>
   );
 }
 function TxtInput({ value, onChange, style }) {
   const C = useC();
   return (
-    <input value={value} onChange={(e) => onChange(e.target.value)}
-      style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
+    <span style={{ width: "100%", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", ...style }}>{value}</span>
   );
 }
 function Card({ children, style }) {
@@ -192,7 +186,7 @@ export default function FinanceDashboard({ onEdit }) {
     const cardRemainderTotal = cardRows.reduce((s, r) => s + r.remainder, 0);
     const monthlyOut = itemizedEff + cardRemainderTotal;
     const annualTotal = data.annual.reduce((s, a) => s + a.amount, 0);
-    const annualMonthly = annualTotal / 12;
+    const annualMonthly = data.annual.reduce((s, a) => s + (a.split ? a.amount * S.householdSplit : a.amount), 0) / 12;
     const effOut = monthlyOut + (S.includeAnnual ? annualMonthly : 0);
     const net = incomeTotal - effOut;
     const cash = data.accounts.reduce((s, a) => s + a.amount, 0);
@@ -256,17 +250,9 @@ export default function FinanceDashboard({ onEdit }) {
                   <Table2 size={13} /> Edit data
                 </button>
               )}
-              <button onClick={() => setImportOpen(true)} title="Import a CSV from your bank, card, Robinhood, or Venmo"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                <Upload size={13} /> Import CSV
-              </button>
               <button onClick={() => setS({ theme: S.theme === "light" ? "dark" : "light" })} title="Toggle theme"
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                 {S.theme === "light" ? <Moon size={13} /> : <Sun size={13} />}{S.theme === "light" ? "Dark" : "Light"}
-              </button>
-              <button onClick={() => { if (confirm("Reset everything back to your original figures?")) setData(SEED); }}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                <RotateCcw size={12} /> Reset
               </button>
             </div>
           </div>
@@ -441,7 +427,7 @@ export default function FinanceDashboard({ onEdit }) {
             </div>
 
           <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 22 }}>
-            Every figure is editable and saves automatically · totals, net worth & runway recalculate instantly
+            View only · tap "Edit data" to make changes — totals, net worth &amp; runway recalculate instantly
           </div>
           {importOpen && (
             <ImportModal
@@ -522,21 +508,10 @@ function RowShell({ children, onDel }) {
   return (
     <div className="row" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, transition: "background .15s" }}>
       {children}
-      <button onClick={onDel} style={{ background: "transparent", border: "none", cursor: "pointer", color: C.mut2, display: "flex", padding: 2, flexShrink: 0 }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = C.neg)} onMouseLeave={(e) => (e.currentTarget.style.color = C.mut2)}><X size={13} /></button>
     </div>
   );
 }
-function AddBtn({ onClick, label }) {
-  const C = useC();
-  return (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, background: "transparent", border: `1px dashed ${C.line}`, color: C.mut, borderRadius: 7, padding: "6px 10px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%", justifyContent: "center" }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.color = C.mut; }}>
-      <Plus size={13} /> {label}
-    </button>
-  );
-}
+function AddBtn() { return null; }
 function List({ rows, onUpd, onDel, onAdd, addLabel, big }) {
   const C = useC();
   return (
@@ -562,21 +537,13 @@ function ExpenseList({ rows, split, payOptions, onUpd, onDel, onAdd }) {
         const eff = r.amount * (r.split ? split : 1);
         return (
           <RowShell key={r.id} onDel={() => onDel(r.id)}>
-            <button onClick={() => onUpd(r.id, { split: !r.split })} title={r.split ? "Split — click for full" : "Full — click to split"}
-              style={{ background: "transparent", border: "none", cursor: "pointer", color: r.split ? C.accent : C.mut2, display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></button>
-            <div style={{ flex: 1, minWidth: 70 }}><TxtInput value={r.name} onChange={(v) => onUpd(r.id, { name: v })} /></div>
-            <select value={r.cat} onChange={(e) => onUpd(r.id, { cat: e.target.value })}
-              style={{ background: C.bg2, color: C.mut, border: `1px solid ${C.line}`, borderRadius: 6, fontSize: 10.5, padding: "3px 4px", fontFamily: "inherit", cursor: "pointer", flexShrink: 0, maxWidth: 96 }}>
-              {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={r.acct || ""} onChange={(e) => onUpd(r.id, { acct: e.target.value })} title="Paid with"
-              style={{ background: C.bg2, color: r.acct ? C.text : C.mut2, border: `1px solid ${C.line}`, borderRadius: 6, fontSize: 10.5, padding: "3px 4px", fontFamily: "inherit", cursor: "pointer", flexShrink: 0, maxWidth: 120 }}>
-              <option value="">— paid with —</option>
-              {payOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
+            <span title={r.split ? "Split" : "Full"} style={{ color: r.split ? C.accent : C.mut2, display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
+            <div style={{ flex: 1, minWidth: 70 }}><TxtInput value={r.name} /></div>
+            <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>
+            <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>
             <div style={{ width: 86, textAlign: "right", flexShrink: 0 }}>
               <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-              <NumInput value={r.amount} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 66 }} />
+              <NumInput value={r.amount} style={{ display: "inline-block", width: 66 }} />
               {r.split && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
             </div>
           </RowShell>
@@ -591,15 +558,15 @@ function AnnualList({ rows, onUpd, onDel, onAdd }) {
   return (
     <div>
       {rows.map((r) => (
-        <RowShell key={r.id} onDel={() => onDel(r.id)}>
+        <RowShell key={r.id}>
+          <span title={r.split ? "Split" : "Full"} style={{ color: r.split ? C.accent : C.mut2, display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <TxtInput value={r.name} onChange={(v) => onUpd(r.id, { name: v })} />
-            <input value={r.note || ""} placeholder="timing / note" onChange={(e) => onUpd(r.id, { note: e.target.value })}
-              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.mut2, fontSize: 10.5, fontStyle: "italic", fontFamily: "inherit", marginTop: -1 }} />
+            <TxtInput value={r.name} />
+            <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates].filter(Boolean).join(" · ") || (r.note || "")}</div>
           </div>
           <div style={{ width: 96, textAlign: "right", flexShrink: 0 }}>
             <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-            <NumInput value={r.amount} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 78 }} />
+            <NumInput value={r.amount} style={{ display: "inline-block", width: 78 }} />
           </div>
         </RowShell>
       ))}
@@ -658,8 +625,7 @@ function CardList({ cards, spend, onUpd, onDel, onAdd }) {
           <div key={c.id} style={{ padding: "9px 9px", borderRadius: 9, border: `1px solid ${C.line}`, background: C.bg2, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <CreditCard size={13} color={C.accent} style={{ flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} onChange={(v) => onUpd(c.id, { name: v })} style={{ fontWeight: 600 }} /></div>
-              <button onClick={() => onDel(c.id)} style={{ background: "transparent", border: "none", cursor: "pointer", color: C.mut2, display: "flex", padding: 2 }}><X size={12} /></button>
+              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} style={{ fontWeight: 600 }} /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
               <Field label="Balance"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.balance} onChange={(v) => onUpd(c.id, { balance: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>

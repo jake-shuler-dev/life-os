@@ -5,6 +5,7 @@ import { ArrowLeft, Trash2, Plus, Check } from "lucide-react";
 const STORE_KEY = "finance_data_v3";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const CATS = ["Household", "Housing", "Food", "Health", "Subscriptions", "Obligations", "Other"];
+const FREQS = ["Annual", "Semiannual", "Quarterly", "Custom"];
 
 const C = {
   bg: "#141417", bg2: "#1A1A1F", panel: "#212127", line: "#2F2F38", line2: "#3A3A45",
@@ -64,6 +65,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
                       <input type="checkbox" checked={!!row[col.key]} onChange={(e) => onUpd(row.id, { [col.key]: e.target.checked })} style={{ accentColor: C.accent, width: 15, height: 15, cursor: "pointer" }} />
                     </div>
                   )}
+                  {col.type === "day" && <input className="fe-in" value={row[col.key] ?? ""} placeholder="—" inputMode="numeric" onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2); onUpd(row.id, { [col.key]: v === "" ? "" : Math.min(31, +v) }); }} style={{ textAlign: "center" }} />}
                 </td>
               ))}
               <td className="fe-td" style={{ textAlign: "center" }}>
@@ -170,12 +172,13 @@ export default function FinanceEntry({ onBack }) {
               { key: "cat", label: "Category", type: "select", options: CATS },
               { key: "acct", label: "Paid With", type: "select", options: PAY },
               { key: "split", label: "Split", type: "check", align: "center" },
+              { key: "dueDay", label: "Due day", type: "day", align: "center" },
               { key: "amount", label: "Amount", type: "num", align: "right" },
             ]}
-            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, amount: 0 })} />
+            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", amount: 0 })} />
           <EditTable icon="📅" title="Annual Expenses" totalKey="amount" rows={draft.annual} addLabel="Add annual expense"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "note", label: "Timing", type: "note" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
-            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", note: "", amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
+            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", split: false, amount: 0 })} />
         </div>
 
         <div className="fe-group"><span className="fe-glbl">Net Worth</span><span style={{ flex: 1, height: 1, background: C.line }} /></div>
