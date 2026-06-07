@@ -255,8 +255,8 @@ export default function ScheduleCalendar({ view, setView }) {
           <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: "1fr" }}>
             {cells.map((c) => {
               const sh = c.shade, half = sh.t === "am" || sh.t === "pm", wash = "rgba(242,180,92,.16)";
-              let bg; if (sh.t === "am") bg = "linear-gradient(to bottom, " + wash + " 0, " + wash + " " + sh.pct + "%, transparent " + sh.pct + "%)";
-              else if (sh.t === "pm") bg = "linear-gradient(to bottom, transparent " + sh.pct + "%, " + wash + " " + sh.pct + "%)";
+              let bg; if (sh.t === "am") bg = "linear-gradient(to right, " + wash + " 0, " + wash + " " + sh.pct + "%, transparent " + sh.pct + "%)";
+              else if (sh.t === "pm") bg = "linear-gradient(to right, transparent " + sh.pct + "%, " + wash + " " + sh.pct + "%)";
               else if (sh.t === "full") bg = "rgba(242,180,92,.12)";
               const ring = c.k === selectedDate ? "inset 0 0 0 2px rgba(241,239,234,.4)" : "";
               const leftBar = sh.t === "full" ? "inset 3px 0 0 " + T.mine : "";

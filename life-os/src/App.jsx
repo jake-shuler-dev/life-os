@@ -163,7 +163,7 @@ export default function App() {
         {/* STAGE */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {active === null ? (
-            <Home dateStr={dateStr} />
+            <Home dateStr={dateStr} theme={theme} />
           ) : mod.isFinance ? (
             <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
           ) : mod.isToday ? (
@@ -192,11 +192,11 @@ export default function App() {
 }
 
 /* -------------------------------- home ----------------------------------- */
-function Home() {
+function Home({ theme }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 6, paddingBottom: 40 }}>
       <div className="rise" style={{ fontSize: 11, letterSpacing: ".42em", color: T.ember, marginBottom: 18 }}>WELCOME&nbsp;BACK</div>
-      <img className="rise" src="/signature-white.png" alt="signature" style={{ width: "min(44vw, 540px)", height: "auto", display: "block", filter: "drop-shadow(0 8px 34px rgba(0,0,0,.55))", animationDelay: ".08s" }} />
+      <img className="rise" src={theme === "light" ? "/signature-black.png" : "/signature-white.png"} alt="signature" style={{ width: "min(44vw, 540px)", height: "auto", display: "block", filter: theme === "light" ? "drop-shadow(0 6px 22px rgba(20,22,28,.18))" : "drop-shadow(0 8px 34px rgba(0,0,0,.55))", animationDelay: ".08s" }} />
       <div className="rise" style={{ fontSize: 10.5, letterSpacing: ".4em", color: T.faint, marginTop: 22, animationDelay: ".16s" }}>THE OPERATING SYSTEM FOR EVERYTHING</div>
     </div>
   );
