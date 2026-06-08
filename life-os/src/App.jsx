@@ -114,14 +114,21 @@ export default function App() {
         .card:hover { border-color: ${T.ember} !important; transform: translateY(-2px); background: ${T.panelHi} !important; }
         .card:hover .arrow { color: ${T.ember} !important; transform: translate(2px,-2px); }
         .rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+        @media (max-width: 760px) {
+          .app-main { padding: 12px 12px 32px !important; }
+          .app-head { flex-wrap: wrap !important; gap: 10px !important; }
+          .app-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; }
+          .app-tabs::-webkit-scrollbar { height: 0; }
+          .app-tabs button { flex: 0 0 auto !important; padding: 11px 13px !important; letter-spacing: .12em !important; font-size: 10px !important; }
+        }
       `}</style>
 
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: `linear-gradient(${T.line} 1px, transparent 1px), linear-gradient(90deg, ${T.line} 1px, transparent 1px)`, backgroundSize: "46px 46px", opacity: .25, maskImage: "radial-gradient(ellipse at 50% 40%, #000 30%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at 50% 40%, #000 30%, transparent 80%)" }} />
       <div style={{ position: "absolute", top: -180, left: "50%", transform: "translateX(-50%)", width: 900, height: 360, background: `radial-gradient(ellipse, ${T.emberDim}, transparent 70%)`, pointerEvents: "none", animation: "glow 6s ease-in-out infinite" }} />
 
-      <div style={{ position: "relative", maxWidth: 1560, margin: "0 auto", padding: "20px 26px 40px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <div className="app-main" style={{ position: "relative", maxWidth: 1560, margin: "0 auto", padding: "20px 26px 40px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         {/* HUD header — LIFE OS is the home button */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 14 }}>
+        <div className="app-head" style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 14 }}>
           <div className="mark" title="Home" onClick={goHome} style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="dot" style={{ width: 9, height: 9, background: T.ember, display: "inline-block", boxShadow: `0 0 12px ${T.ember}` }} />
             <span className="logo" style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".34em" }}>LIFE&nbsp;OS</span>
@@ -147,7 +154,7 @@ export default function App() {
         </div>
 
         {/* NAV TABS — evenly distributed */}
-        <div style={{ display: "flex", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+        <div className="app-tabs" style={{ display: "flex", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
           {MODULES.map((m) => {
             const on = active === m.id;
             return (

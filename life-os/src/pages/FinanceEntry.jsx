@@ -122,7 +122,7 @@ export default function FinanceEntry({ onBack, onOpenSubs }) {
   const add = (key, blank) => () => setRows(key, [...draft[key], { id: uid(), ...blank }]);
   const subTotal = (period) => ((full && full.subscriptions) || []).reduce((s, x) => s + (x.period === period && !x.companyPaid ? (+x.amount || 0) : 0), 0);
 
-  const PAY = [...draft.accounts.map((a) => a.name), ...draft.cards.map((c) => c.name)].filter(Boolean);
+  const PAY = [...new Set(["Cash", ...draft.accounts.map((a) => a.name), ...draft.cards.map((c) => c.name)])].filter(Boolean);
 
   async function save() {
     const merged = { ...full, ...draft };
@@ -191,8 +191,8 @@ export default function FinanceEntry({ onBack, onOpenSubs }) {
             onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", companyPaid: false, amount: 0 })} />
           <SubsBar label="Monthly subscriptions" total={subTotal("monthly")} onClick={() => onOpenSubs && onOpenSubs("monthly")} />
           <EditTable icon="📅" title="Annual Expenses" totalKey="amount" rows={draft.annual} addLabel="Add annual expense"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
-            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", split: false, companyPaid: false, amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "acct", label: "Paid With", type: "select", options: PAY }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
+            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", acct: "", split: false, companyPaid: false, amount: 0 })} />
           <SubsBar label="Annual subscriptions" total={subTotal("annual")} onClick={() => onOpenSubs && onOpenSubs("annual")} />
         </div>
 

@@ -569,7 +569,7 @@ function AnnualList({ rows, subsTotal, onOpenSubs }) {
           <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
-            <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates].filter(Boolean).join(" · ") || (r.note || "")}</div>
+            <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates, r.acct].filter(Boolean).join(" · ") || (r.note || "")}</div>
           </div>
           <div style={{ width: 96, textAlign: "right", flexShrink: 0 }}>
             <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>

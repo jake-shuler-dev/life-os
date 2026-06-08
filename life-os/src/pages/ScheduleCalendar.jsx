@@ -3,6 +3,11 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, X, Trash2, RefreshCw } from "l
 import { supabase } from "../lib/supabase.js";
 
 const STORE_KEY = "schedule_v1";
+function useIsMobile(bp = 760) {
+  const [m, setM] = useState(typeof window !== "undefined" && window.innerWidth <= bp);
+  useEffect(() => { const on = () => setM(window.innerWidth <= bp); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, [bp]);
+  return m;
+}
 const T = {
   bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
   line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
@@ -38,6 +43,7 @@ export default function ScheduleCalendar({ view, setView }) {
   const [manageOpen, setManageOpen] = useState(false);
   const [exc, setExc] = useState({ date: key(today), type: "with", time: "12:00 PM" });
   const [addCal, setAddCal] = useState({ open: false, name: "", url: "", cat: "" });
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     (async () => {
@@ -170,7 +176,7 @@ export default function ScheduleCalendar({ view, setView }) {
             <button className="sc-popbtn" onClick={() => { setMineOpen(!mineOpen); setManageOpen(false); }} title="Edit schedule & exceptions" style={{ background: T.panel, border: "1px solid " + T.line2, color: T.dim, width: 28, height: 28, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Pencil size={13} /></button>
           </span>
           {mineOpen && (
-            <div className="sc-pop" style={{ position: "absolute", top: 36, right: 0, width: 300, maxHeight: "72vh", overflowY: "auto", background: T.panel, border: "1px solid " + T.line2, borderRadius: 12, padding: 13, zIndex: 50, boxShadow: "0 14px 40px rgba(0,0,0,.5)" }}>
+            <div className="sc-pop" style={{ position: "absolute", top: 36, right: 0, width: "min(94vw, 300px)", maxHeight: "72vh", overflowY: "auto", background: T.panel, border: "1px solid " + T.line2, borderRadius: 12, padding: 13, zIndex: 50, boxShadow: "0 14px 40px rgba(0,0,0,.5)" }}>
               <H>Repeating Schedule</H>
               <Row><input className="sc-in" style={{ ...popInput, width: 44, textAlign: "center" }} type="number" min="1" value={pattern.on} onChange={(e) => setPattern({ on: Math.max(1, +e.target.value || 1) })} /><span style={{ color: T.dim, fontSize: 12.5 }}>days with kids</span></Row>
               <Row><input className="sc-in" style={{ ...popInput, width: 44, textAlign: "center" }} type="number" min="1" value={pattern.off} onChange={(e) => setPattern({ off: Math.max(1, +e.target.value || 1) })} /><span style={{ color: T.dim, fontSize: 12.5 }}>days without</span></Row>
@@ -201,7 +207,7 @@ export default function ScheduleCalendar({ view, setView }) {
         <div style={{ position: "relative" }}>
           <button className="sc-popbtn" onClick={() => { setManageOpen(!manageOpen); setMineOpen(false); }} style={{ display: "flex", alignItems: "center", gap: 7, background: T.ember, border: "none", color: "#fff", borderRadius: 9, padding: "8px 14px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" }}>＋ Connect</button>
           {manageOpen && (
-            <div className="sc-pop" style={{ position: "absolute", top: 40, right: 0, width: 320, maxHeight: "74vh", overflowY: "auto", background: T.panel, border: "1px solid " + T.line2, borderRadius: 12, padding: 13, zIndex: 50, boxShadow: "0 14px 40px rgba(0,0,0,.5)" }}>
+            <div className="sc-pop" style={{ position: "absolute", top: 40, right: 0, width: "min(94vw, 320px)", maxHeight: "74vh", overflowY: "auto", background: T.panel, border: "1px solid " + T.line2, borderRadius: 12, padding: 13, zIndex: 50, boxShadow: "0 14px 40px rgba(0,0,0,.5)" }}>
               <H>Categories</H>
               {categories.map((c) => (
                 <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
@@ -241,7 +247,7 @@ export default function ScheduleCalendar({ view, setView }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}>
+      <div style={isMobile ? { display: "flex", flexDirection: "column", gap: 14 } : { flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "1fr 320px", gap: 14 }}>
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 15, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
             <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} style={navBtn}><ChevronLeft size={15} /></button>
@@ -252,7 +258,7 @@ export default function ScheduleCalendar({ view, setView }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: "1px solid " + T.line, flex: "none" }}>
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", color: T.faint, textTransform: "uppercase", padding: "8px 11px" }}>{d}</div>)}
           </div>
-          <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: "1fr" }}>
+          <div style={{ flex: isMobile ? "none" : 1, minHeight: 0, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: isMobile ? "52px" : "1fr" }}>
             {cells.map((c) => {
               const sh = c.shade, half = sh.t === "am" || sh.t === "pm", wash = "rgba(242,180,92,.16)";
               let bg; if (sh.t === "am") bg = "linear-gradient(to right, " + wash + " 0, " + wash + " " + sh.pct + "%, transparent " + sh.pct + "%)";
@@ -276,26 +282,26 @@ export default function ScheduleCalendar({ view, setView }) {
 
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 14 }}>
           {/* TODAY box (33%) */}
-          <div style={{ flex: "33 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
+          <div style={{ flex: isMobile ? "none" : "33 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
               <span style={{ width: 3, height: 14, borderRadius: 2, background: T.ember }} />
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", flex: 1 }}>{isSelToday ? "Today" : selD.toLocaleDateString("en-US", { weekday: "long" })}</span>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{selD.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
             </div>
-            <div className="sc-body" style={{ padding: "6px 9px", overflow: "auto", minHeight: 0, flex: 1 }}>
+            <div className="sc-body" style={{ padding: "6px 9px", overflow: "auto", minHeight: 0, flex: 1, maxHeight: isMobile ? "38vh" : undefined }}>
               {dayEvents.length === 0 ? <div style={{ color: T.faint, fontSize: 12.5, padding: 8, fontStyle: "italic" }}>{calendars.length ? "Nothing scheduled." : "No calendars linked yet — use ＋ Connect."}</div>
                 : dayEvents.map((e, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 7px" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: eventColor(e), flexShrink: 0 }} /><span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.dim, width: 52, flexShrink: 0 }}>{e.time}</span><span style={{ fontSize: 13.5 }}>{e.title}</span></div>)}
             </div>
           </div>
 
           {/* THIS WEEK box (66%) */}
-          <div style={{ flex: "66 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
+          <div style={{ flex: isMobile ? "none" : "66 1 0", display: "flex", flexDirection: "column", minHeight: 0, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 14px", borderBottom: "1px solid " + T.line, flex: "none" }}>
               <span style={{ width: 3, height: 14, borderRadius: 2, background: T.mine }} />
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", flex: 1 }}>This Week</span>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – {weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
             </div>
-            <div className="sc-body" style={{ padding: "4px 9px 8px", overflow: "auto", minHeight: 0, flex: 1 }}>
+            <div className="sc-body" style={{ padding: "4px 9px 8px", overflow: "auto", minHeight: 0, flex: 1, maxHeight: isMobile ? "55vh" : undefined }}>
               {weekDays.map((d) => {
                 const k = key(d), isT = k === key(today);
                 const evs = events.filter((e) => e.date === k && show(e));
