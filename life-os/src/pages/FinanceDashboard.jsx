@@ -544,7 +544,6 @@ function ExpenseList({ rows, split, subsTotal, onOpenSubs }) {
           </RowShell>
         );
       })}
-      <SubsLine total={subsTotal} onClick={() => onOpenSubs("monthly")} />
     </div>
   );
 }
@@ -577,7 +576,6 @@ function AnnualList({ rows, subsTotal, onOpenSubs }) {
           </div>
         </RowShell>
       ); })}
-      <SubsLine total={subsTotal} onClick={() => onOpenSubs("annual")} />
     </div>
   );
 }

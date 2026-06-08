@@ -29,7 +29,8 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
   const [period, setPeriod] = useState(scope === "annual" ? "annual" : "monthly");
   const [full, setFull] = useState(null);
   const [loaded, setLoaded] = useState(false);
-  const t = useRef(null);
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => { (async () => {
     let obj = {};
@@ -38,17 +39,19 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
     setFull(obj); setLoaded(true);
   })(); }, []);
 
-  const persist = (next) => { setFull(next); if (t.current) clearTimeout(t.current); t.current = setTimeout(() => { window.storage.set(STORE_KEY, JSON.stringify(next), false).catch(() => {}); }, 400); };
-
   if (!loaded || !full) return <div style={{ minHeight: 300, color: C.mut, padding: 40, fontFamily: "'Hanken Grotesk',sans-serif" }}>Loading…</div>;
+
+  const setLocal = (next) => { setFull(next); setDirty(true); setSaved(false); };
+  const save = async () => { try { await window.storage.set(STORE_KEY, JSON.stringify(full), false); setDirty(false); setSaved(true); setTimeout(() => setSaved(false), 2500); } catch (e) {} };
+  const back = () => { if (dirty && typeof window !== "undefined" && !window.confirm("Leave without saving? Your changes will be lost.")) return; onBack(); };
 
   const subs = full.subscriptions || [];
   const PAY = [...new Set(["Cash", ...((full.accounts || []).map((a) => a.name)), ...((full.cards || []).map((c) => c.name))])].filter(Boolean);
   const rows = subs.filter((s) => s.period === period);
   const total = rows.reduce((s, x) => s + (x.companyPaid ? 0 : (+x.amount || 0)), 0);
-  const upd = (id, patch) => persist({ ...full, subscriptions: subs.map((s) => s.id === id ? { ...s, ...patch } : s) });
-  const del = (id) => persist({ ...full, subscriptions: subs.filter((s) => s.id !== id) });
-  const addRow = () => persist({ ...full, subscriptions: [...subs, { id: uid(), name: "", amount: 0, period, day: "", date: "", companyPaid: false, acct: "" }] });
+  const upd = (id, patch) => setLocal({ ...full, subscriptions: subs.map((s) => s.id === id ? { ...s, ...patch } : s) });
+  const del = (id) => setLocal({ ...full, subscriptions: subs.filter((s) => s.id !== id) });
+  const addRow = () => setLocal({ ...full, subscriptions: [...subs, { id: uid(), name: "", amount: 0, period, day: "", date: "", companyPaid: false, acct: "" }] });
 
   const inp = { background: C.bg, border: `1px solid ${C.line2}`, color: C.text, borderRadius: 7, padding: "8px 10px", fontFamily: "inherit", fontSize: 13.5, outline: "none", colorScheme: "light dark" };
 
@@ -57,11 +60,12 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
       <style>{`.subs-in:focus{border-color:${C.accent}!important}`}</style>
       <div style={{ maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line2}`, color: C.mut, borderRadius: 9, padding: "8px 12px", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}><ArrowLeft size={14} /> Back</button>
+          <button onClick={back} style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line2}`, color: C.mut, borderRadius: 9, padding: "8px 12px", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}><ArrowLeft size={14} /> Back</button>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Fraunces',serif", fontSize: 22, fontWeight: 500 }}>Subscriptions</div>
             <div style={{ fontSize: 12, color: C.mut }}>Itemize recurring services — these roll up into the Subscriptions line in your expenses.</div>
           </div>
+          <button onClick={save} disabled={!dirty} style={{ display: "flex", alignItems: "center", gap: 6, background: dirty ? C.accent : "transparent", border: `1px solid ${dirty ? C.accent : C.line2}`, color: dirty ? "#fff" : (saved ? C.pos : C.mut), borderRadius: 9, padding: "9px 20px", cursor: dirty ? "pointer" : "default", fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>{saved && !dirty ? "Saved ✓" : "Save"}</button>
         </div>
 
         <div style={{ display: "flex", gap: 5, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: 4, marginBottom: 14, width: "fit-content" }}>
@@ -110,7 +114,7 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
             <button onClick={addRow} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, background: "transparent", border: `1px dashed ${C.line2}`, color: C.mut, borderRadius: 8, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit", width: "100%", justifyContent: "center" }}><Plus size={14} /> Add {period} subscription</button>
           </div>
         </div>
-        <div style={{ fontSize: 11.5, color: C.mut2, marginTop: 12, lineHeight: 1.5 }}>Company-paid subscriptions are tracked here but excluded from your totals, runway, and bills. Changes save automatically.</div>
+        <div style={{ fontSize: 11.5, color: C.mut2, marginTop: 12, lineHeight: 1.5 }}>Company-paid subscriptions are tracked here but excluded from your totals, runway, and bills. Changes are not stored until you press Save.</div>
       </div>
     </div>
   );

@@ -42,8 +42,8 @@ function SubsBar({ label, total, onClick }) {
   );
 }
 
-function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, addLabel }) {
-  const total = rows.reduce((s, r) => s + (r.companyPaid ? 0 : (parseFloat(r[totalKey]) || 0)), 0);
+function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, addLabel, pinned }) {
+  const total = rows.reduce((s, r) => s + (r.companyPaid ? 0 : (parseFloat(r[totalKey]) || 0)), 0) + (pinned ? (+pinned.total || 0) : 0);
   const span = columns.length - 1;
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
@@ -84,6 +84,16 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
               </td>
             </tr>
           ))}
+          {pinned && (
+            <tr className="fe-tr" onClick={pinned.onClick} style={{ cursor: "pointer", background: "var(--emberDim)" }} title="Manage subscriptions">
+              <td className="fe-td" colSpan={span} style={{ fontWeight: 600, color: C.text }}>
+                <span style={{ marginRight: 7 }}>🔁</span>{pinned.label}
+                <span style={{ color: C.accent, fontWeight: 500, fontSize: 11.5, marginLeft: 8 }}>manage →</span>
+              </td>
+              <td className="fe-td" style={{ textAlign: "right", fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{money(pinned.total)}</td>
+              <td className="fe-td"></td>
+            </tr>
+          )}
         </tbody>
         <tfoot><tr>
           <td className="fe-foot" colSpan={span} style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".08em" }}>Total</td>
@@ -188,12 +198,12 @@ export default function FinanceEntry({ onBack, onOpenSubs }) {
               { key: "companyPaid", label: "Company", type: "check", align: "center" },
               { key: "amount", label: "Amount", type: "num", align: "right" },
             ]}
-            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", companyPaid: false, amount: 0 })} />
-          <SubsBar label="Monthly subscriptions" total={subTotal("monthly")} onClick={() => onOpenSubs && onOpenSubs("monthly")} />
+            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", companyPaid: false, amount: 0 })}
+            pinned={{ label: "Subscriptions", total: subTotal("monthly"), onClick: () => onOpenSubs && onOpenSubs("monthly") }} />
           <EditTable icon="📅" title="Annual Expenses" totalKey="amount" rows={draft.annual} addLabel="Add annual expense"
             columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "acct", label: "Paid With", type: "select", options: PAY }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
-            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", acct: "", split: false, companyPaid: false, amount: 0 })} />
-          <SubsBar label="Annual subscriptions" total={subTotal("annual")} onClick={() => onOpenSubs && onOpenSubs("annual")} />
+            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", acct: "", split: false, companyPaid: false, amount: 0 })}
+            pinned={{ label: "Subscriptions", total: subTotal("annual"), onClick: () => onOpenSubs && onOpenSubs("annual") }} />
         </div>
 
         <div className="fe-group"><span className="fe-glbl">Net Worth</span><span style={{ flex: 1, height: 1, background: C.line }} /></div>
