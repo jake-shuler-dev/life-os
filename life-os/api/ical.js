@@ -48,7 +48,25 @@ function parseICS(raw) {
     const occ = [];
     if (rruleRaw) expand(rruleRaw.replace(/^[^:]*:/, "").trim(), dt, winStart, winEnd, occ);
     else if (dt.ms >= winStart && dt.ms <= winEnd) occ.push(dt.ms);
-    for (const ms of occ) out.push({ title, allDay: dt.allDay, date: dateKey(ms), time: fmtTime(ms, dt.allDay) });
+    // multi-day span via DTEND (all-day DTEND is exclusive per iCal spec)
+    const dtEndRaw = get("DTEND");
+    const dtEnd = dtEndRaw ? parseDt(dtEndRaw) : null;
+    let spanDays = 1;
+    if (dtEnd && dtEnd.ms > dt.ms) {
+      if (dt.allDay) spanDays = Math.round((dtEnd.ms - dt.ms) / DAY);
+      else {
+        const dayOnly = (x) => { const d = new Date(x); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); };
+        spanDays = Math.round((dayOnly(dtEnd.ms) - dayOnly(dt.ms)) / DAY) + 1;
+      }
+    }
+    if (spanDays < 1) spanDays = 1;
+    if (spanDays > 60) spanDays = 60;
+    for (const ms of occ) {
+      for (let i = 0; i < spanDays; i++) {
+        const dayMs = ms + i * DAY;
+        out.push({ title, allDay: dt.allDay, date: dateKey(dayMs), time: dt.allDay ? "All day" : (i === 0 ? fmtTime(ms, false) : "All day") });
+      }
+    }
     if (out.length > 1200) break;
   }
   return out;
