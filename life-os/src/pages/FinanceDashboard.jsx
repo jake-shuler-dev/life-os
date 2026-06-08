@@ -544,19 +544,18 @@ function ExpenseList({ rows, split, subsTotal, onOpenSubs }) {
           </RowShell>
         );
       })}
+      <SubsRow total={subsTotal} onClick={() => onOpenSubs("monthly")} amtWidth={86} />
     </div>
   );
 }
-function SubsLine({ total, onClick }) {
+function SubsRow({ total, onClick, amtWidth }) {
   const C = useC();
   return (
-    <button onClick={onClick} className="row" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", borderRadius: 7, width: "100%", background: "transparent", border: `1px dashed ${C.line}`, cursor: "pointer", marginTop: 6, fontFamily: "inherit", textAlign: "left" }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.line; }}>
+    <div className="row" onClick={onClick} title="Manage subscriptions" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, cursor: "pointer" }}>
       <Repeat size={13} color={C.accent} style={{ flexShrink: 0 }} />
-      <span style={{ flex: 1, color: C.text, fontSize: 13 }}>Subscriptions</span>
-      <span style={{ color: C.text, fontSize: 13, fontVariantNumeric: "tabular-nums" }}>{money0(total || 0)}</span>
-      <ChevronRight size={14} color={C.mut} />
-    </button>
+      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: C.text }}>Subscriptions<span style={{ color: C.accent, fontWeight: 500, fontSize: 11.5, marginLeft: 8 }}>manage →</span></span>
+      <div style={{ width: amtWidth, textAlign: "right", flexShrink: 0, fontSize: 13.5, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: C.text }}>{money0(total || 0)}</div>
+    </div>
   );
 }
 function AnnualList({ rows, subsTotal, onOpenSubs }) {
@@ -576,6 +575,7 @@ function AnnualList({ rows, subsTotal, onOpenSubs }) {
           </div>
         </RowShell>
       ); })}
+      <SubsRow total={subsTotal} onClick={() => onOpenSubs("annual")} amtWidth={96} />
     </div>
   );
 }
