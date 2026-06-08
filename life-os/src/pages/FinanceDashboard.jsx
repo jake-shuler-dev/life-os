@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from "recharts";
 import {
   TrendingUp, TrendingDown, Plus, X, Wallet, Building2, Landmark, CalendarClock,
-  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, ChevronRight, Scale, Upload, Table2, Repeat,
+  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, ChevronRight, Scale, Upload, Table2, Repeat, Download,
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
@@ -214,6 +214,70 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
   const negative = M.net < 0;
   const payOptions = useMemo(() => [...data.accounts.map((a) => a.name), ...data.cards.map((c) => c.name)].filter(Boolean), [data.accounts, data.cards]);
 
+  const exportCSV = () => {
+    const split = S.householdSplit != null ? S.householdSplit : 1;
+    const n2 = (v) => (Math.round((+v || 0) * 100) / 100).toFixed(2);
+    const esc = (v) => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = [];
+    const L = (...c) => rows.push(c.map(esc).join(","));
+    const yn = (b) => (b ? "Yes" : "No");
+    const subs = data.subscriptions || [];
+
+    L("Life OS — Finance Export"); L("Generated", new Date().toLocaleString()); L("Household split", Math.round(split * 100) + "%"); L("");
+
+    L("INCOME"); L("Name", "Monthly Amount");
+    data.income.forEach((i) => L(i.name, n2(i.amount)));
+    L("Subtotal", n2(M.incomeTotal)); L("");
+
+    L("MONTHLY EXPENSES"); L("Name", "Category", "Paid With", "Split", "Due Day", "Company-Paid", "Amount", "Your Share");
+    data.expenses.forEach((e) => L(e.name, e.cat || "", e.acct || "", yn(e.split), e.dueDay || "", yn(e.companyPaid), n2(e.amount), n2(e.companyPaid ? 0 : e.amount * (e.split ? split : 1))));
+    subs.filter((s) => s.period === "monthly").forEach((s) => L("Subscription: " + (s.name || ""), "Subscriptions", s.acct || "", "No", s.day || "", yn(s.companyPaid), n2(s.amount), n2(s.companyPaid ? 0 : s.amount)));
+    L("Monthly expenses total (your share)", "", "", "", "", "", "", n2(M.monthlyOut)); L("");
+
+    L("ANNUAL EXPENSES"); L("Name", "Frequency", "Date(s)", "Paid With", "Split", "Company-Paid", "Annual Amount", "Monthly (amortized)");
+    data.annual.forEach((a) => L(a.name, a.freq || "", a.dates || "", a.acct || "", yn(a.split), yn(a.companyPaid), n2(a.amount), n2((a.companyPaid ? 0 : (a.split ? a.amount * split : a.amount)) / 12)));
+    subs.filter((s) => s.period === "annual").forEach((s) => L("Subscription: " + (s.name || ""), "", s.date || "", s.acct || "", "No", yn(s.companyPaid), n2(s.amount), n2((s.companyPaid ? 0 : s.amount) / 12)));
+    L("Annual total", "", "", "", "", "", n2(M.annualTotal), n2(M.annualMonthly)); L("");
+
+    L("SUBSCRIPTIONS"); L("Name", "Period", "Amount", "Day / Renewal", "Source", "Company-Paid");
+    subs.forEach((s) => L(s.name, s.period, n2(s.amount), s.period === "monthly" ? (s.day || "") : (s.date || ""), s.acct || "", yn(s.companyPaid)));
+    L(""); 
+
+    L("ASSETS"); L("Name", "Value");
+    data.assets.forEach((a) => L(a.name, n2(a.amount)));
+    L("Subtotal", n2(M.assetsTotal)); L("");
+
+    L("LIABILITIES"); L("Name", "Company-Paid", "Balance");
+    data.liabilities.forEach((l) => L(l.name, yn(l.companyPaid), n2(l.amount)));
+    L("Subtotal (excl. company-paid)", "", n2(M.liabTotal - (S.includeCardDebt ? M.cardDebt : 0))); L("");
+
+    L("ACCOUNTS / CASH"); L("Name", "Balance");
+    data.accounts.forEach((a) => L(a.name, n2(a.amount)));
+    L("Total cash", n2(M.cash)); L("");
+
+    L("CREDIT CARDS"); L("Name", "Balance", "Limit", "Payment", "Due");
+    data.cards.forEach((c) => L(c.name, n2(c.balance), n2(c.limit), n2(c.payment), c.due || ""));
+    L("Total card debt", n2(M.cardDebt)); L("");
+
+    L("SUMMARY"); L("Metric", "Value");
+    L("Monthly income", n2(M.incomeTotal));
+    L("Monthly expenses (your share)", n2(M.effOut));
+    L("Net monthly", n2(M.net));
+    L("Total cash", n2(M.cash));
+    L("Assets", n2(M.assetsTotal));
+    L("Liabilities", n2(M.liabTotal));
+    L("Net worth", n2(M.netWorth));
+    L("Cash runway (months)", isFinite(M.runwayMonths) ? n2(M.runwayMonths) : "∞");
+
+    const csv = "\ufeff" + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "finance-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   if (!loaded) return <div style={{ background: DARK.bg, color: DARK.mut, minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "sans-serif" }}>Loading…</div>;
 
   return (
@@ -244,6 +308,10 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
+              <button onClick={exportCSV} title="Export all finance data to a CSV file"
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                <Download size={13} /> Export CSV
+              </button>
               {onEdit && (
                 <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
                   style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
