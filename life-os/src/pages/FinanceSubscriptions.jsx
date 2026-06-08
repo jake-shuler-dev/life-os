@@ -9,6 +9,22 @@ const C = {
 };
 const money = (n) => "$" + Math.round(+n || 0).toLocaleString("en-US");
 
+function AmtInput({ value, onCommit }) {
+  const [t, setT] = useState(value === 0 || value == null ? "" : String(value));
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setT(value === 0 || value == null ? "" : String(value)); }, [value]);
+  return (
+    <div style={{ width: 100, display: "flex", alignItems: "center", background: C.bg, border: `1px solid ${C.line2}`, borderRadius: 7, padding: "0 8px" }}>
+      <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
+      <input className="subs-in" inputMode="decimal" placeholder="0" value={t}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => { focused.current = false; const n = parseFloat(t) || 0; onCommit(n); setT(n === 0 ? "" : String(n)); }}
+        onChange={(e) => { let v = e.target.value.replace(/[^0-9.]/g, ""); const p = v.split("."); if (p.length > 2) v = p[0] + "." + p.slice(1).join(""); if (p[1] && p[1].length > 2) v = p[0] + "." + p[1].slice(0, 2); setT(v); onCommit(parseFloat(v) || 0); }}
+        style={{ background: "transparent", border: "none", outline: "none", color: C.text, fontFamily: "inherit", fontSize: 13.5, padding: "8px 4px", width: "100%" }} />
+    </div>
+  );
+}
+
 export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
   const [period, setPeriod] = useState(scope === "annual" ? "annual" : "monthly");
   const [full, setFull] = useState(null);
@@ -27,13 +43,14 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
   if (!loaded || !full) return <div style={{ minHeight: 300, color: C.mut, padding: 40, fontFamily: "'Hanken Grotesk',sans-serif" }}>Loading…</div>;
 
   const subs = full.subscriptions || [];
+  const PAY = [...new Set(["Cash", ...((full.accounts || []).map((a) => a.name)), ...((full.cards || []).map((c) => c.name))])].filter(Boolean);
   const rows = subs.filter((s) => s.period === period);
   const total = rows.reduce((s, x) => s + (x.companyPaid ? 0 : (+x.amount || 0)), 0);
   const upd = (id, patch) => persist({ ...full, subscriptions: subs.map((s) => s.id === id ? { ...s, ...patch } : s) });
   const del = (id) => persist({ ...full, subscriptions: subs.filter((s) => s.id !== id) });
-  const addRow = () => persist({ ...full, subscriptions: [...subs, { id: uid(), name: "", amount: 0, period, day: "", date: "", companyPaid: false }] });
+  const addRow = () => persist({ ...full, subscriptions: [...subs, { id: uid(), name: "", amount: 0, period, day: "", date: "", companyPaid: false, acct: "" }] });
 
-  const inp = { background: C.bg, border: `1px solid ${C.line2}`, color: C.text, borderRadius: 7, padding: "8px 10px", fontFamily: "inherit", fontSize: 13.5, outline: "none", colorScheme: "dark" };
+  const inp = { background: C.bg, border: `1px solid ${C.line2}`, color: C.text, borderRadius: 7, padding: "8px 10px", fontFamily: "inherit", fontSize: 13.5, outline: "none", colorScheme: "light dark" };
 
   return (
     <div style={{ flex: 1, paddingTop: 18, fontFamily: "'Hanken Grotesk',system-ui,sans-serif", color: C.text }}>
@@ -63,28 +80,30 @@ export default function FinanceSubscriptions({ scope = "monthly", onBack }) {
           <div style={{ padding: 12 }}>
             <div style={{ display: "flex", gap: 8, padding: "0 4px 6px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.mut2, letterSpacing: ".08em", textTransform: "uppercase" }}>
               <span style={{ flex: 1 }}>Service</span>
-              <span style={{ width: 110 }}>{period === "monthly" ? "Per month" : "Per year"}</span>
-              <span style={{ width: 92 }}>{period === "monthly" ? "Day of month" : "Renews (M/D)"}</span>
-              <span style={{ width: 64, textAlign: "center" }}>Company</span>
-              <span style={{ width: 32 }}></span>
+              <span style={{ width: 120 }}>Source</span>
+              <span style={{ width: 100 }}>{period === "monthly" ? "Per month" : "Per year"}</span>
+              <span style={{ width: 86 }}>{period === "monthly" ? "Day" : "Renews (M/D)"}</span>
+              <span style={{ width: 52, textAlign: "center" }}>Co.</span>
+              <span style={{ width: 28 }}></span>
             </div>
 
             {rows.length === 0 && <div style={{ color: C.mut2, fontSize: 13, padding: "10px 4px", fontStyle: "italic" }}>No {period} subscriptions yet. Add one below.</div>}
 
             {rows.map((s) => (
               <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "5px 4px" }}>
-                <input className="subs-in" style={{ ...inp, flex: 1 }} placeholder="e.g. Netflix" value={s.name} onChange={(e) => upd(s.id, { name: e.target.value })} />
-                <div style={{ width: 110, display: "flex", alignItems: "center", background: C.bg, border: `1px solid ${C.line2}`, borderRadius: 7, padding: "0 8px" }}>
-                  <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-                  <input className="subs-in" style={{ ...inp, border: "none", padding: "8px 4px", width: "100%", background: "transparent" }} inputMode="decimal" value={s.amount === 0 ? "" : s.amount} placeholder="0" onChange={(e) => upd(s.id, { amount: parseFloat(e.target.value.replace(/[^0-9.]/g, "")) || 0 })} />
-                </div>
+                <input className="subs-in" style={{ ...inp, flex: 1, minWidth: 0 }} placeholder="e.g. Netflix" value={s.name} onChange={(e) => upd(s.id, { name: e.target.value })} />
+                <select className="subs-in" value={s.acct || ""} onChange={(e) => upd(s.id, { acct: e.target.value })} style={{ ...inp, width: 120, cursor: "pointer" }}>
+                  <option value="">Source…</option>
+                  {PAY.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <AmtInput value={s.amount} onCommit={(n) => upd(s.id, { amount: n })} />
                 {period === "monthly"
-                  ? <input className="subs-in" style={{ ...inp, width: 92, textAlign: "center" }} placeholder="—" inputMode="numeric" value={s.day ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2); upd(s.id, { day: v === "" ? "" : Math.min(31, +v) }); }} />
-                  : <input className="subs-in" style={{ ...inp, width: 92 }} placeholder="2/1" value={s.date ?? ""} onChange={(e) => upd(s.id, { date: e.target.value })} />}
-                <div style={{ width: 64, textAlign: "center" }}>
+                  ? <input className="subs-in" style={{ ...inp, width: 86, textAlign: "center" }} placeholder="—" inputMode="numeric" value={s.day ?? ""} onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2); upd(s.id, { day: v === "" ? "" : Math.min(31, +v) }); }} />
+                  : <input className="subs-in" style={{ ...inp, width: 86 }} placeholder="2/1" value={s.date ?? ""} onChange={(e) => upd(s.id, { date: e.target.value })} />}
+                <div style={{ width: 52, textAlign: "center" }}>
                   <input type="checkbox" checked={!!s.companyPaid} onChange={(e) => upd(s.id, { companyPaid: e.target.checked })} style={{ accentColor: C.accent, width: 15, height: 15, cursor: "pointer" }} />
                 </div>
-                <button onClick={() => del(s.id)} style={{ width: 32, background: "transparent", border: "none", color: C.mut2, cursor: "pointer", display: "flex", justifyContent: "center" }}><Trash2 size={14} /></button>
+                <button onClick={() => del(s.id)} style={{ width: 28, background: "transparent", border: "none", color: C.mut2, cursor: "pointer", display: "flex", justifyContent: "center" }}><Trash2 size={14} /></button>
               </div>
             ))}
 
