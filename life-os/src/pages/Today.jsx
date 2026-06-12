@@ -1,23 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Pencil, Trash2, Check, X, CalendarClock, Wallet, HeartPulse, Shirt, Utensils, Newspaper, Droplet, RefreshCw, Sparkles, Plus, Minus, Receipt } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Pencil, Trash2, Check, X, CalendarClock, Utensils, Dumbbell, Sparkles, ChevronLeft, ChevronRight, Volume2, Square, Trophy, Landmark, TrendingUp, MapPin } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const T = {
   bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
   line: "var(--line)", line2: "var(--line2)", text: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
-  ember: "var(--ember)", good: "var(--good)", cool: "#3CC8E0", warm: "#FFB020", music: "#7C84FF", mine: "#F2B45C",
+  ember: "var(--ember)", good: "var(--good)",
 };
 const STORE = "today_v1";
 const key = (d) => d.toISOString().slice(0, 10);
-const money = (n) => "$" + Math.round(n || 0).toLocaleString();
 
-function parseMD(tok) {
-  const m = String(tok).match(/^(\d{1,2})[\/\-.](\d{1,2})$/);
-  if (m) return { m: +m[1], d: +m[2] };
-  const t = Date.parse(tok + " " + new Date().getFullYear());
-  if (!isNaN(t)) { const d = new Date(t); return { m: d.getMonth() + 1, d: d.getDate() }; }
-  return null;
-}
 function appliesToday(t, d) { if (t.recur === "daily") return true; if (t.recur === "weekly") return (t.days || []).includes(d.getDay()); if (t.recur === "date") return t.date === key(d); return false; }
 function parseClock(t) { if (!t) return null; const s = String(t).trim().toLowerCase(); if (s.includes("all")) return null; const m = s.match(/(\d{1,2})(?::(\d{2}))?\s*([ap])?/); if (!m) return null; let h = +m[1]; const mn = m[2] ? +m[2] : 0; const ap = m[3]; if (ap === "p" && h < 12) h += 12; if (ap === "a" && h === 12) h = 0; return h * 60 + mn; }
 function wx(code) {
@@ -33,24 +25,30 @@ function wx(code) {
 
 export default function Today() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dayNum = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
   const [loaded, setLoaded] = useState(false);
-  const [data, setData] = useState({ mantra: "", hydration: { date: key(today), glasses: 0 } });
+  const [data, setData] = useState({ mantra: "", mealOff: { b: 0, l: 0, d: 0 }, woOff: 0, agendaDone: { date: key(today), keys: [] } });
   const [editMantra, setEditMantra] = useState(false);
   const [draft, setDraft] = useState("");
   const [agenda, setAgenda] = useState(null);
-  const [fin, setFin] = useState(null);
   const [weather, setWeather] = useState(null);
   const [news, setNews] = useState(null);
-  const [formality, setFormality] = useState("Smart Casual");
-  const [styleText, setStyleText] = useState(""); const [styleBusy, setStyleBusy] = useState(false);
-  const [mealText, setMealText] = useState(""); const [mealBusy, setMealBusy] = useState(false);
+  const [meals, setMeals] = useState(null);
+  const [workouts, setWorkouts] = useState(null);
+  const [speaking, setSpeaking] = useState(false);
 
   const save = (next) => { setData(next); window.storage.set(STORE, JSON.stringify(next), false).catch(() => {}); };
 
   useEffect(() => { (async () => {
-    try { const r = await window.storage.get(STORE, false); if (r && r.value) { const o = JSON.parse(r.value); if (!o.hydration || o.hydration.date !== key(today)) o.hydration = { date: key(today), glasses: 0 }; setData({ mantra: o.mantra || "", hydration: o.hydration }); } } catch (e) {}
+    try { const r = await window.storage.get(STORE, false); if (r && r.value) { const o = JSON.parse(r.value);
+      const ad = (o.agendaDone && o.agendaDone.date === key(today)) ? o.agendaDone : { date: key(today), keys: [] };
+      setData({ mantra: o.mantra || "", mealOff: o.mealOff || { b: 0, l: 0, d: 0 }, woOff: o.woOff || 0, agendaDone: ad });
+    } } catch (e) {}
     setLoaded(true);
-    loadAgenda(); loadFinance(); loadWeather(); loadNews();
+    loadAgenda(); loadWeather(); loadNews(); loadMeals(); loadWorkouts();
   })(); }, []);
 
   async function token() { const { data: s } = await supabase.auth.getSession(); return (s && s.session && s.session.access_token) || ""; }
@@ -71,73 +69,86 @@ export default function Today() {
     const all = [...evs, ...recur].sort((a, b) => { const ma = parseClock(a.time), mb = parseClock(b.time); if (ma == null && mb == null) return 0; if (ma == null) return -1; if (mb == null) return 1; return ma - mb; });
     setAgenda(all);
   }
-  async function loadFinance() {
-    try { const r = await window.storage.get("finance_data_v3", false); if (!r || !r.value) { setFin({ cash: 0, runway: Infinity }); return; }
-      const f = JSON.parse(r.value); const S = f.settings || {};
-      const split = S.householdSplit != null ? S.householdSplit : 1;
-      const eff = (e) => e.companyPaid ? 0 : (+e.amount || 0) * (e.split ? split : 1);
-      const income = (f.income || []).reduce((s, i) => s + (+i.amount || 0), 0);
-      const itemized = (f.expenses || []).reduce((s, e) => s + eff(e), 0);
-      const tagged = {}; (f.expenses || []).forEach((e) => { if (e.acct && !e.companyPaid) tagged[e.acct] = (tagged[e.acct] || 0) + (+e.amount || 0); });
-      const cardRemainder = (f.cards || []).reduce((s, c) => { const pay = c.payment || 0; return s + (pay > 0 ? pay - (tagged[c.name] || 0) : 0); }, 0);
-      const subsList = f.subscriptions || [];
-      const monthlySubs = subsList.reduce((s, x) => s + (x.period === "monthly" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
-      const annualSubs = subsList.reduce((s, x) => s + (x.period === "annual" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
-      const annualMo = ((f.annual || []).reduce((s, a) => s + (a.companyPaid ? 0 : (a.split ? (+a.amount || 0) * split : (+a.amount || 0))), 0) + annualSubs) / 12;
-      const out = itemized + cardRemainder + monthlySubs + (S.includeAnnual ? annualMo : 0);
-      const cash = (f.accounts || []).reduce((s, a) => s + (+a.amount || 0), 0);
-      const runway = out > 0 ? cash / out : Infinity;
-      const start = new Date(today); const end = new Date(today); end.setDate(end.getDate() + 14);
-      const clampDay = (y, m, d) => Math.min(d, new Date(y, m + 1, 0).getDate());
-      const bills = [];
-      (f.expenses || []).forEach((e) => { if (e.companyPaid) return; const dd = parseInt(e.dueDay, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: e.name || "Expense", amount: (e.split ? (+e.amount || 0) * split : (+e.amount || 0)), date: occ }); });
-      (f.annual || []).forEach((a) => { if (a.companyPaid) return; const toks = String(a.dates || "").split(",").map((s) => s.trim()).filter(Boolean); if (!toks.length) return; const per = (a.split ? (+a.amount || 0) * split : (+a.amount || 0)) / toks.length; toks.forEach((tok) => { const md = parseMD(tok); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: a.name || "Annual", amount: per, date: occ }); }); });
-      subsList.forEach((x) => { if (x.companyPaid) return; if (x.period === "monthly") { const dd = parseInt(x.day, 10); if (!dd || dd < 1 || dd > 31) return; let y = today.getFullYear(), m = today.getMonth(); let occ = new Date(y, m, clampDay(y, m, dd)); if (occ < today) { m += 1; if (m > 11) { m = 0; y += 1; } occ = new Date(y, m, clampDay(y, m, dd)); } if (occ >= start && occ <= end) bills.push({ name: x.name || "Subscription", amount: +x.amount || 0, date: occ }); } else { const md = parseMD(x.date); if (!md) return; let y = today.getFullYear(); let occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); if (occ < today) { y += 1; occ = new Date(y, md.m - 1, clampDay(y, md.m - 1, md.d)); } if (occ >= start && occ <= end) bills.push({ name: x.name || "Subscription", amount: +x.amount || 0, date: occ }); } });
-      bills.sort((x, y2) => x.date - y2.date);
-      setFin({ cash, runway, bills });
-    } catch (e) { setFin({ cash: 0, runway: Infinity, bills: [] }); }
-  }
   async function loadWeather() {
     try { const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.925&longitude=-86.869&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto");
       const d = await r.json();
       const hours = []; const times = (d.hourly && d.hourly.time) || []; const nowMs = Date.now();
       let start = times.findIndex((t) => new Date(t).getTime() >= nowMs); if (start < 0) start = 0;
-      for (let i = start; i < times.length && hours.length < 6; i += 2) hours.push({ t: times[i], temp: Math.round(d.hourly.temperature_2m[i]), code: d.hourly.weather_code[i], pop: d.hourly.precipitation_probability ? d.hourly.precipitation_probability[i] : 0 });
-      setWeather({ now: Math.round(d.current.temperature_2m), code: d.current.weather_code, hi: Math.round(d.daily.temperature_2m_max[0]), lo: Math.round(d.daily.temperature_2m_min[0]), pop: d.daily.precipitation_probability_max[0], hours });
+      for (let i = start; i < times.length && hours.length < 5; i += 2) hours.push({ t: times[i], temp: Math.round(d.hourly.temperature_2m[i]), code: d.hourly.weather_code[i], pop: d.hourly.precipitation_probability ? d.hourly.precipitation_probability[i] : 0 });
+      const dy = d.daily;
+      setWeather({ now: Math.round(d.current.temperature_2m), code: d.current.weather_code, hi: Math.round(dy.temperature_2m_max[0]), lo: Math.round(dy.temperature_2m_min[0]), pop: dy.precipitation_probability_max[0], hours, tmrw: { hi: Math.round(dy.temperature_2m_max[1]), lo: Math.round(dy.temperature_2m_min[1]), code: dy.weather_code[1], pop: dy.precipitation_probability_max[1] } });
     } catch (e) { setWeather(null); }
   }
   async function loadNews() {
-    try { const tok = await token(); const r = await fetch("/api/news", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: "{}" }); const j = await r.json(); if (r.ok) setNews(j); else setNews({ sports: [], music: [], pop: [] }); } catch (e) { setNews({ sports: [], music: [], pop: [] }); }
+    try { const tok = await token(); const r = await fetch("/api/news", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: "{}" }); const j = await r.json(); setNews(r.ok ? j : {}); } catch (e) { setNews({}); }
   }
-  async function aiAsk(prompt) {
-    const tok = await token();
-    const r = await fetch("/api/chat", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify({ provider: "claude", system: "You are the assistant inside the user's personal Life OS. Be concise and practical. Reply in short plain lines. No markdown headers, no asterisks.", messages: [{ role: "user", content: prompt }] }) });
-    const j = await r.json(); if (!r.ok) throw new Error(j.error || "AI error"); return j.text;
+  async function loadMeals() {
+    try { const r = await window.storage.get("nutrition_v1", false); let o = { breakfast: [], lunch: [], dinner: [] }; if (r && r.value) { const p = JSON.parse(r.value); o = { breakfast: p.breakfast || [], lunch: p.lunch || [], dinner: p.dinner || [] }; } setMeals(o); } catch (e) { setMeals({ breakfast: [], lunch: [], dinner: [] }); }
   }
-  const wctx = weather ? `Weather today in Franklin, TN: ${weather.now}°F now, high ${weather.hi}°, low ${weather.lo}°, ${wx(weather.code).t}, ${weather.pop}% chance of precipitation.` : "";
-  async function suggestStyle() { setStyleBusy(true); setStyleText(""); try { const next = agenda && agenda.length ? "Today's agenda includes: " + agenda.slice(0, 4).map((a) => a.title).join(", ") + "." : ""; setStyleText(await aiAsk(`Suggest an outfit for a man at a "${formality}" dress level. ${wctx} ${next} Give specific picks in three short lines labeled Clothes:, Shoes:, Accessories:. Keep it practical and weather-appropriate.`)); } catch (e) { setStyleText("⚠ " + e.message); } finally { setStyleBusy(false); } }
-  async function suggestMeals() { setMealBusy(true); setMealText(""); try { setMealText(await aiAsk(`Suggest healthy meals for a man today — one line each labeled Breakfast:, Lunch:, Dinner: — plus one Snack: line. ${wctx} Keep each concise and balanced.`)); } catch (e) { setMealText("⚠ " + e.message); } finally { setMealBusy(false); } }
+  async function loadWorkouts() {
+    try { const r = await window.storage.get("health_v1", false); let w = []; if (r && r.value) w = (JSON.parse(r.value).workouts) || []; setWorkouts(w); } catch (e) { setWorkouts([]); }
+  }
 
-  const hyd = data.hydration || { glasses: 0 };
-  const setGlasses = (n) => save({ ...data, hydration: { date: key(today), glasses: Math.max(0, n) } });
-  const hour = new Date().getHours();
-  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const pick = (arr, off) => (arr && arr.length) ? arr[(((dayNum + (off || 0)) % arr.length) + arr.length) % arr.length] : null;
+  const idxOf = (arr, off) => (arr && arr.length) ? ((((dayNum + (off || 0)) % arr.length) + arr.length) % arr.length) : 0;
+  const nameOf = (x) => x ? (x.name || (typeof x === "string" ? x : "")) : null;
+
+  const akey = (a) => a.kind + "|" + (a.time || "") + "|" + a.title;
+  const isDone = (a) => (data.agendaDone.keys || []).includes(akey(a));
+  const toggleDone = (a) => { const k = akey(a); const keys = data.agendaDone.keys || []; const next = keys.includes(k) ? keys.filter((x) => x !== k) : [...keys, k]; save({ ...data, agendaDone: { date: key(today), keys: next } }); };
+
+  const nudgeMeal = (which, dir) => { const mo = { ...(data.mealOff || { b: 0, l: 0, d: 0 }) }; mo[which] = (mo[which] || 0) + dir; save({ ...data, mealOff: mo }); };
+  const nudgeWo = (dir) => save({ ...data, woOff: (data.woOff || 0) + dir });
+
+  const overview = useMemo(() => {
+    const parts = [];
+    const dstr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    parts.push(`${greet}, Jake. Today is ${dstr}.`);
+    if (weather) parts.push(`It's ${weather.now}° and ${wx(weather.code).t.toLowerCase()} in Franklin right now, with a high near ${weather.hi}° and a low around ${weather.lo}°${weather.pop >= 20 ? `, and about a ${weather.pop}% chance of precipitation` : ""}.`);
+    if (agenda) { if (agenda.length === 0) parts.push("Your calendar is clear today."); else { const first = agenda.find((a) => parseClock(a.time) != null); parts.push(`You have ${agenda.length} thing${agenda.length > 1 ? "s" : ""} on your agenda${first ? `, starting with ${first.title} at ${first.time}` : ""}.`); } }
+    const b = nameOf(pick(meals && meals.breakfast, (data.mealOff || {}).b)), l = nameOf(pick(meals && meals.lunch, (data.mealOff || {}).l)), dn = nameOf(pick(meals && meals.dinner, (data.mealOff || {}).d));
+    const ml = [b && "breakfast " + b, l && "lunch " + l, dn && "dinner " + dn].filter(Boolean);
+    if (ml.length) parts.push(`On the menu: ${ml.join(", ")}.`);
+    const wo = nameOf(pick(workouts, data.woOff)); if (wo) parts.push(`Today's workout is ${wo}.`);
+    if (data.mantra) parts.push(`Keep your mantra in mind: ${data.mantra}.`);
+    return parts.join(" ");
+  }, [weather, agenda, data, meals, workouts]);
+
+  const speak = () => {
+    try {
+      if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
+      const u = new SpeechSynthesisUtterance(overview); u.rate = 1;
+      u.onend = () => setSpeaking(false); u.onerror = () => setSpeaking(false);
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); setSpeaking(true);
+    } catch (e) {}
+  };
+  useEffect(() => () => { try { window.speechSynthesis.cancel(); } catch (e) {} }, []);
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: "auto", paddingTop: 14, fontFamily: "'Hanken Grotesk',system-ui,sans-serif", color: T.text }}>
       <style>{`.td::-webkit-scrollbar{width:8px}.td::-webkit-scrollbar-thumb{background:${T.line2};border-radius:8px}
         .tw{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
-        .t3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px}
-        @media(max-width:1000px){.tw,.t3{grid-template-columns:1fr}}
-        @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        .tn{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:14px}
+        @media(max-width:1000px){.tw{grid-template-columns:1fr}.tn{grid-template-columns:1fr 1fr}}
+        @media(max-width:620px){.tn{grid-template-columns:1fr}}`}</style>
 
-      {/* header + weather */}
-      <div style={{ marginBottom: 13 }}>
-        <div style={{ fontFamily: "'Fraunces',serif", fontSize: 26, fontWeight: 500 }}>{greet}, Jake</div>
-        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.faint, letterSpacing: ".1em", textTransform: "uppercase", marginTop: 3 }}>{today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 13 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Fraunces',serif", fontSize: 26, fontWeight: 500 }}>{greet}, Jake</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.faint, letterSpacing: ".1em", textTransform: "uppercase", marginTop: 3 }}>{today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+        </div>
       </div>
 
-      {/* weather: current conditions + today's forecast, together */}
+      {/* overview + read aloud */}
+      <div style={{ background: "linear-gradient(135deg,var(--panel),var(--bg2))", border: "1px solid " + T.line, borderRadius: 15, padding: "16px 18px", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: T.dim, flex: 1 }}>Daily Overview</span>
+          <button onClick={speak} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: speaking ? T.ember : "transparent", border: "1px solid " + T.ember, color: speaking ? "#fff" : T.ember, borderRadius: 9, padding: "6px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" }}>{speaking ? <Square size={12} /> : <Volume2 size={13} />}{speaking ? "Stop" : "Read aloud"}</button>
+        </div>
+        <div style={{ fontSize: 14.5, lineHeight: 1.6, color: T.text }}>{overview}</div>
+      </div>
+
+      {/* weather: now + tomorrow + hourly */}
       {weather && (
         <div style={{ display: "flex", alignItems: "center", gap: 14, background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: "12px 16px", marginBottom: 14, overflowX: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
@@ -147,8 +158,17 @@ export default function Today() {
               <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Now · {wx(weather.code).t} · {weather.hi}°/{weather.lo}°</div>
             </div>
           </div>
+          {weather.tmrw && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, paddingLeft: 14, borderLeft: "1px solid " + T.line }}>
+              <span style={{ fontSize: 24 }}>{wx(weather.tmrw.code).e}</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1 }}>{weather.tmrw.hi}°/{weather.tmrw.lo}°</div>
+                <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Tomorrow · {wx(weather.tmrw.code).t}{weather.tmrw.pop >= 20 ? ` · ${weather.tmrw.pop}%` : ""}</div>
+              </div>
+            </div>
+          )}
           {weather.hours && weather.hours.map((h, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 54, paddingLeft: 12, borderLeft: "1px solid " + T.line, flexShrink: 0 }}>
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 52, paddingLeft: 12, borderLeft: "1px solid " + T.line, flexShrink: 0 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: T.faint }}>{new Date(h.t).toLocaleTimeString("en-US", { hour: "numeric" })}</span>
               <span style={{ fontSize: 17 }}>{wx(h.code).e}</span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{h.temp}°</span>
@@ -159,17 +179,17 @@ export default function Today() {
       )}
 
       {/* mantra */}
-      <div style={{ background: "linear-gradient(135deg,var(--panel),var(--bg2))", border: "1px solid " + T.line, borderRadius: 15, padding: "18px 22px", display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+      <div style={{ background: "linear-gradient(135deg,var(--panel),var(--bg2))", border: "1px solid " + T.line, borderRadius: 15, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
         <Sparkles size={18} color={T.ember} style={{ flexShrink: 0 }} />
         {editMantra ? (
           <>
-            <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { save({ ...data, mantra: draft }); setEditMantra(false); } }} placeholder="Enter a mantra for now…" style={{ flex: 1, background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 8, padding: "9px 12px", fontFamily: "'Fraunces',serif", fontSize: 18, outline: "none" }} />
+            <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { save({ ...data, mantra: draft }); setEditMantra(false); } }} placeholder="Enter a mantra for now…" style={{ flex: 1, minWidth: 0, background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 8, padding: "9px 12px", fontFamily: "'Fraunces',serif", fontSize: 17, outline: "none" }} />
             <button onClick={() => { save({ ...data, mantra: draft }); setEditMantra(false); }} style={iconBtn}><Check size={15} /></button>
             <button onClick={() => setEditMantra(false)} style={iconBtn}><X size={15} /></button>
           </>
         ) : (
           <>
-            <div style={{ flex: 1, fontFamily: "'Fraunces',serif", fontSize: 20, fontWeight: 500, fontStyle: data.mantra ? "normal" : "italic", color: data.mantra ? T.text : T.faint }}>{data.mantra || "Set a mantra to anchor your day…"}</div>
+            <div style={{ flex: 1, minWidth: 0, fontFamily: "'Fraunces',serif", fontSize: 18, fontWeight: 500, fontStyle: data.mantra ? "normal" : "italic", color: data.mantra ? T.text : T.faint }}>{data.mantra || "Set a mantra to anchor your day…"}</div>
             <button onClick={() => { setDraft(data.mantra); setEditMantra(true); }} style={iconBtn}><Pencil size={14} /></button>
             {data.mantra && <button onClick={() => save({ ...data, mantra: "" })} style={iconBtn}><Trash2 size={14} /></button>}
           </>
@@ -181,90 +201,81 @@ export default function Today() {
         <Panel title="Today's Agenda" Icon={CalendarClock} accent={T.ember}>
           {agenda == null ? <Muted>Loading…</Muted> : agenda.length === 0 ? <Muted>Nothing scheduled today. Link calendars in Schedule or add recurring tasks.</Muted> : (
             <div style={{ display: "flex", flexDirection: "column" }}>
-              {agenda.map((a, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: i < agenda.length - 1 ? "1px solid " + T.line : "none" }}>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.dim, width: 64, flexShrink: 0 }}>{a.time && !String(a.time).toLowerCase().includes("all") ? a.time : "All day"}</span>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: a.kind === "event" ? T.ember : "transparent", border: "1px solid " + T.ember, flexShrink: 0 }} />
-                  <span style={{ fontSize: 13.5, flex: 1 }}>{a.title}</span>
+              {agenda.map((a, i) => { const done = isDone(a); return (
+                <div key={i} onClick={() => toggleDone(a)} title="Tap to mark done" style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: i < agenda.length - 1 ? "1px solid " + T.line : "none", cursor: "pointer", opacity: done ? 0.45 : 1, transition: "opacity .15s" }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.dim, width: 64, flexShrink: 0, textDecoration: done ? "line-through" : "none" }}>{a.time && !String(a.time).toLowerCase().includes("all") ? a.time : "All day"}</span>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: done ? T.dim : (a.kind === "event" ? T.ember : "transparent"), border: "1px solid " + (done ? T.dim : T.ember), flexShrink: 0 }} />
+                  <span style={{ fontSize: 13.5, flex: 1, textDecoration: done ? "line-through" : "none" }}>{a.title}</span>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.faint, textTransform: "uppercase", letterSpacing: ".06em" }}>{a.kind}</span>
                 </div>
-              ))}
+              ); })}
             </div>
           )}
         </Panel>
 
-        {/* right stack: finance + health */}
+        {/* meals + workout */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Panel title="Finance" Icon={Wallet} accent={T.ember}>
-            {fin == null ? <Muted>Loading…</Muted> : (
-              <div style={{ display: "flex", gap: 28 }}>
-                <div><div style={lbl}>Total cash</div><div style={{ fontSize: 22, fontWeight: 400 }}>{money(fin.cash)}</div></div>
-                <div><div style={lbl}>Cash runway</div><div style={{ fontSize: 22, fontWeight: 400 }}>{isFinite(fin.runway) ? fin.runway.toFixed(1) + " mo" : "growing"}</div></div>
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Bills Coming Due" Icon={Receipt} accent={T.ember}>
-            {fin == null ? <Muted>Loading…</Muted> : (!fin.bills || fin.bills.length === 0) ? <Muted>Nothing due in the next 14 days.</Muted> : (
+          <Panel title="Today's Meals" Icon={Utensils} accent={T.ember}>
+            {meals == null ? <Muted>Loading…</Muted> : (!meals.breakfast.length && !meals.lunch.length && !meals.dinner.length) ? <Muted>Add meal options in the Nutrition tab and they'll be suggested here.</Muted> : (
               <div>
-                {fin.bills.map((b, i) => { const d = new Date(b.date); const isT = d.toDateString() === today.toDateString(); return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 2px", borderBottom: i < fin.bills.length - 1 ? "1px solid " + T.line : "none" }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: isT ? T.ember : T.dim, width: 60, flexShrink: 0 }}>{isT ? "Today" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    <span style={{ fontSize: 13.5, flex: 1 }}>{b.name}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13 }}>{money(b.amount)}</span>
-                  </div>
-                ); })}
+                {[["Breakfast", "b", meals.breakfast], ["Lunch", "l", meals.lunch], ["Dinner", "d", meals.dinner]].map(([label, k, arr], i) => {
+                  const nm = nameOf(pick(arr, (data.mealOff || {})[k]));
+                  return (
+                    <div key={k} style={{ padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.line : "none" }}>
+                      <div style={lbl}>{label}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button onClick={() => nudgeMeal(k, -1)} disabled={!arr.length} style={navMini}><ChevronLeft size={14} /></button>
+                        <span style={{ flex: 1, fontSize: 14, color: nm ? T.text : T.faint }}>{nm || "—"}</span>
+                        <button onClick={() => nudgeMeal(k, 1)} disabled={!arr.length} style={navMini}><ChevronRight size={14} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Panel>
 
-          <Panel title="Health" Icon={HeartPulse} accent={T.ember} pill="Coming online">
-            <Muted>WHOOP recovery, strain &amp; sleep — plus today's supplement timing and workout — land here once WHOOP is connected and the Health module is built.</Muted>
+          <Panel title="Today's Workout" Icon={Dumbbell} accent={T.ember}>
+            {workouts == null ? <Muted>Loading…</Muted> : !workouts.length ? <Muted>Add your workouts in the Health tab and they'll cycle here, one per day.</Muted> : (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button onClick={() => nudgeWo(-1)} style={navMini}><ChevronLeft size={14} /></button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{nameOf(pick(workouts, data.woOff)) || "—"}</div>
+                    {(() => { const w = pick(workouts, data.woOff); return w && w.note ? <div style={{ fontSize: 12.5, color: T.dim, marginTop: 2 }}>{w.note}</div> : null; })()}
+                  </div>
+                  <button onClick={() => nudgeWo(1)} style={navMini}><ChevronRight size={14} /></button>
+                </div>
+                <div style={{ ...lbl, marginTop: 9, marginBottom: 0 }}>Workout {idxOf(workouts, data.woOff) + 1} of {workouts.length}</div>
+              </div>
+            )}
           </Panel>
         </div>
       </div>
 
-      <div className="t3">
-        {/* style */}
-        <Panel title="Style" Icon={Shirt} accent={T.ember}>
-          <div style={lbl}>Dress level</div>
-          <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 11 }}>
-            {["Casual", "Smart Casual", "Business", "Formal"].map((f) => <button key={f} onClick={() => setFormality(f)} style={seg(formality === f, T.ember)}>{f}</button>)}
-          </div>
-          <button onClick={suggestStyle} disabled={styleBusy} style={aiBtn(T.ember)}>{styleBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest outfit</button>
-          {styleText && <pre style={pre}>{styleText}</pre>}
-        </Panel>
-
-        {/* food */}
-        <Panel title="Food & Hydration" Icon={Utensils} accent={T.ember}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Droplet size={16} color={T.ember} />
-            <span style={{ fontSize: 13, color: T.dim, flex: 1 }}>Aim ~100 oz today</span>
-            <button onClick={() => setGlasses(hyd.glasses - 1)} style={iconMini}><Minus size={13} /></button>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, minWidth: 58, textAlign: "center" }}>{hyd.glasses} × 12oz</span>
-            <button onClick={() => setGlasses(hyd.glasses + 1)} style={iconMini}><Plus size={13} /></button>
-          </div>
-          <button onClick={suggestMeals} disabled={mealBusy} style={aiBtn(T.ember)}>{mealBusy ? <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={13} />} Suggest meals</button>
-          {mealText && <pre style={pre}>{mealText}</pre>}
-        </Panel>
-
-        {/* news */}
-        <Panel title="Briefing" Icon={Newspaper} accent={T.ember}>
-          {news == null ? <Muted>Loading headlines…</Muted> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[["Sports", news.sports], ["Music", news.music], ["Pop Culture", news.pop]].map(([label, items]) => (
-                <div key={label}>
-                  <div style={lbl}>{label}</div>
-                  {(!items || items.length === 0) ? <div style={{ fontSize: 12, color: T.faint }}>—</div>
-                    : items.slice(0, 3).map((h, i) => <a key={i} href={h.link} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12.5, color: T.text, textDecoration: "none", padding: "3px 0", borderBottom: "1px solid " + T.line, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.title}</a>)}
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
+      {/* news */}
+      <div className="tn">
+        <NewsPanel title="Sports" Icon={Trophy} items={news && news.sports} loading={news == null} />
+        <NewsPanel title="Politics" Icon={Landmark} items={news && news.politics} loading={news == null} />
+        <NewsPanel title="Economy" Icon={TrendingUp} items={news && news.economics} loading={news == null} />
+        <NewsPanel title="Local" Icon={MapPin} items={news && news.local} loading={news == null} />
       </div>
       <div style={{ height: 24 }} />
     </div>
+  );
+}
+
+function NewsPanel({ title, Icon, items, loading }) {
+  return (
+    <Panel title={title} Icon={Icon} accent={T.ember}>
+      {loading ? <Muted>Loading…</Muted> : (!items || items.length === 0) ? <Muted>No headlines right now.</Muted> : (
+        <div>
+          {items.slice(0, 6).map((h, i) => (
+            <a key={i} href={h.link} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12.5, color: T.text, textDecoration: "none", padding: "6px 0", borderBottom: i < Math.min(items.length, 6) - 1 ? "1px solid " + T.line : "none", lineHeight: 1.35 }}>{h.title}{h.source ? <span style={{ color: T.faint, fontSize: 10.5 }}> · {h.source}</span> : null}</a>
+          ))}
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -282,9 +293,6 @@ function Panel({ title, Icon, accent, children, pill }) {
 }
 function Muted({ children }) { return <div style={{ fontSize: 12.5, color: T.faint, fontStyle: "italic", lineHeight: 1.5 }}>{children}</div>; }
 const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--faint)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 };
-const pre = { whiteSpace: "pre-wrap", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 12.5, color: "var(--text)", lineHeight: 1.55, marginTop: 11, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 9, padding: "11px 13px" };
 const iconBtn = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
-const iconMini = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 26, height: 26, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
-function seg(on, c) { return { padding: "6px 11px", borderRadius: 7, border: "1px solid " + (on ? c : "var(--line2)"), background: on ? c : "transparent", color: on ? "#0E0E10" : "var(--dim)", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", cursor: "pointer" }; }
-function aiBtn(c) { return { display: "inline-flex", alignItems: "center", gap: 7, background: "transparent", border: "1px solid " + c, color: c, borderRadius: 9, padding: "8px 13px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" }; }
-function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
+const navMini = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 28, height: 28, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+function hexA(hex, a) { if (!hex || hex[0] !== "#") return "rgba(255,90,31," + a + ")"; const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }

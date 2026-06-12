@@ -1,10 +1,17 @@
-// Pulls a few real headlines per category from public RSS feeds, server-side.
-// Protected by the user's Supabase JWT (the Today page is behind login anyway).
+// Pulls real headlines per category from public RSS feeds, server-side.
+// Protected by the user's Supabase JWT (the app is behind login anyway).
 const FEEDS = [
-  { cat: "sports", url: "https://www.espn.com/espn/rss/news" },
-  { cat: "music", url: "https://www.rollingstone.com/music/music-news/feed/" },
-  { cat: "pop", url: "https://variety.com/feed/" },
+  { cat: "sports", source: "ESPN", url: "https://www.espn.com/espn/rss/news" },
+  { cat: "pop", source: "Variety", url: "https://variety.com/feed/" },
+  { cat: "pop", source: "Rolling Stone", url: "https://www.rollingstone.com/culture/culture-news/feed/" },
+  { cat: "economics", source: "CNBC", url: "https://www.cnbc.com/id/20910258/device/rss/rss.html" },
+  { cat: "economics", source: "MarketWatch", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories" },
+  { cat: "politics", source: "NPR", url: "https://feeds.npr.org/1014/rss.xml" },
+  { cat: "politics", source: "The Hill", url: "https://thehill.com/news/feed/" },
+  { cat: "local", source: "Tennessean", url: "https://rssfeeds.tennessean.com/nashville/news" },
+  { cat: "local", source: "WKRN", url: "https://www.wkrn.com/feed/" },
 ];
+const CATS = ["sports", "pop", "economics", "politics", "local"];
 
 export default async function handler(req, res) {
   try {
@@ -15,15 +22,20 @@ export default async function handler(req, res) {
     if (!who.ok) { res.status(401).json({ error: "Session expired." }); return; }
   } catch { res.status(401).json({ error: "Auth failed." }); return; }
 
-  const out = { sports: [], music: [], pop: [] };
+  const out = {}; CATS.forEach((c) => (out[c] = []));
   await Promise.all(FEEDS.map(async (f) => {
     try {
-      const r = await fetch(f.url, { headers: { "User-Agent": "LifeOS/1.0", Accept: "application/rss+xml,application/xml,text/xml,*/*" } });
+      const r = await fetch(f.url, { headers: { "User-Agent": "Mozilla/5.0 (LifeOS)", Accept: "application/rss+xml,application/xml,text/xml,*/*" } });
       if (!r.ok) return;
       const xml = await r.text();
-      out[f.cat] = parseRss(xml).slice(0, 5);
+      const items = parseRss(xml).slice(0, 6).map((it) => ({ ...it, source: f.source }));
+      out[f.cat].push(...items);
     } catch (e) {}
   }));
+  for (const c of CATS) {
+    const seen = new Set();
+    out[c] = out[c].filter((x) => { const k = (x.title || "").toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
+  }
   res.status(200).json(out);
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Newspaper,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
@@ -9,6 +9,10 @@ import Vision from "./pages/Vision.jsx";
 import HomeControls from "./pages/HomeControls.jsx";
 import Today from "./pages/Today.jsx";
 import AiChat from "./pages/AiChat.jsx";
+import Shopping from "./pages/Shopping.jsx";
+import News from "./pages/News.jsx";
+import Nutrition from "./pages/Nutrition.jsx";
+import Health from "./pages/Health.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
 
@@ -35,18 +39,17 @@ const MODULES = [
     sub: [{ t: "Calendar", d: "month / kids-with-me" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
-  { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse,
-    sub: [{ t: "Fitness · Goals", d: "targets & milestones" }, { t: "Fitness · Workout Plan", d: "the program" }, { t: "Fitness · Today's Workout", d: "what to do now" }, { t: "WHOOP Stats", d: "recovery · strain · sleep" }, { t: "Supplements", d: "stack & schedule" }] },
-  { id: "food", tab: "NUTRITION", title: "Food & Nutrition", icon: Utensils,
-    sub: [{ t: "Meals", d: "plan & log" }, { t: "Order Groceries", d: "restock the kitchen" }, { t: "Order Food", d: "delivery & takeout" }, { t: "Goals", d: "macros & intake" }, { t: "Supplements", d: "nutrition stack" }] },
-  { id: "style", tab: "STYLE", title: "Style", icon: Shirt,
-    sub: [{ t: "Categories", d: "organize the wardrobe" }, { t: "My Closet", d: "everything you own" }, { t: "AI Outfit Picker", d: "dressed by algorithm" }] },
+  { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse, isHealth: true,
+    sub: [{ t: "Workouts", d: "cycles into Today, one per day", live: true }] },
+  { id: "food", tab: "NUTRITION", title: "Food & Nutrition", icon: Utensils, isNutrition: true,
+    sub: [{ t: "Meals", d: "options that feed Today's Meals", live: true }] },
   { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target, isVision: true,
     sub: [{ t: "Vision Board", d: "images · text · drawing — anything goes" }] },
-  { id: "vehicles", tab: "VEHICLES", title: "Vehicles", icon: Car, sub: [{ t: "Linked Vehicles", d: "connect & monitor" }] },
   { id: "home", tab: "HOME", title: "Home Controls", icon: House, isHome: true },
-  { id: "amazon", tab: "AMAZON", title: "Amazon", icon: ShoppingCart, isLink: true, url: "https://www.amazon.com" },
-  { id: "socials", tab: "SOCIALS", title: "Socials", icon: AtSign, sub: [{ t: "Linked Socials", d: "all feeds, one place" }] },
+  { id: "shopping", tab: "SHOPPING", title: "Shopping", icon: ShoppingCart, isShopping: true,
+    sub: [{ t: "Stores", d: "Amazon · Instacart", live: true }] },
+  { id: "news", tab: "NEWS", title: "News", icon: Newspaper, isNews: true,
+    sub: [{ t: "Headlines", d: "sports · pop · economy · politics · local", live: true }] },
   { id: "ai", tab: "AI", title: "AI Assistant", icon: Bot, isAi: true, sub: [{ t: "Chat", d: "Claude · ChatGPT · Grok", live: true }] },
 ];
 
@@ -183,6 +186,14 @@ export default function App() {
             <HomeControls />
           ) : mod.isAi ? (
             <AiChat />
+          ) : mod.isShopping ? (
+            <Shopping />
+          ) : mod.isNews ? (
+            <News />
+          ) : mod.isHealth ? (
+            <Health />
+          ) : mod.isNutrition ? (
+            <Nutrition />
           ) : (
             <Section mod={mod} filter={filter} setFilter={setFilter} />
           )}

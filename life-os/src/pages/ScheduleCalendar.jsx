@@ -25,6 +25,8 @@ const key = (d) => d.toISOString().slice(0, 10);
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const startOfWeek = (d) => addDays(d, -d.getDay());
 function parseTime(s) { const m = String(s).trim().match(/(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i); if (!m) return 12; let h = +m[1]; const min = m[2] ? +m[2] : 0; const ap = m[3] ? m[3].toLowerCase() : ""; if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0; return h + min / 60; }
+function evtMin(e) { const t = String(e.time || "").trim().toLowerCase(); if (!t || t.includes("all")) return -1; return parseTime(e.time); }
+function byTime(a, b) { return evtMin(a) - evtMin(b); }
 const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; };
 function detectSource(url) { const u = url.toLowerCase(); if (u.includes("google")) return "Google"; if (u.includes("icloud") || u.includes("apple")) return "Apple"; if (u.includes("outlook") || u.includes("office365") || u.includes("live.com")) return "Outlook"; return "iCal"; }
 function computeAnchor(p) { const h = parseTime(p.switchTime); const a = new Date((p.startDate || new Date().toISOString().slice(0, 10)) + "T00:00"); a.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0); return a.getTime(); }
@@ -136,7 +138,7 @@ export default function ScheduleCalendar({ view, setView }) {
   const start = startOfWeek(new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1));
   const cells = [];
   for (let i = 0; i < 42; i++) { const d = addDays(start, i); cells.push({ d, k: key(d), out: d.getMonth() !== viewMonth.getMonth(), today: key(d) === key(today), shade: showMine ? shadeOf(d) : { t: "none" } }); }
-  const dayEvents = events.filter((e) => e.date === selectedDate && show(e));
+  const dayEvents = events.filter((e) => e.date === selectedDate && show(e)).sort(byTime);
   const selD = new Date(selectedDate + "T00:00"), isSelToday = selectedDate === key(today);
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(today, i + 1));
   const weekStart = weekDays[0];
@@ -267,7 +269,7 @@ export default function ScheduleCalendar({ view, setView }) {
               const ring = c.k === selectedDate ? "inset 0 0 0 2px rgba(241,239,234,.4)" : "";
               const leftBar = sh.t === "full" ? "inset 3px 0 0 " + T.mine : "";
               const boxShadow = [leftBar, ring].filter(Boolean).join(",");
-              const evs = events.filter((e) => e.date === c.k && show(e));
+              const evs = events.filter((e) => e.date === c.k && show(e)).sort(byTime);
               return (
                 <div key={c.k} className="sc-cell" onClick={() => { if (mineOpen) { setExc((x) => ({ ...x, date: c.k })); return; } setSelectedDate(c.k); }} style={{ opacity: c.out ? .35 : 1, background: bg, boxShadow: boxShadow || undefined }}>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: c.today ? "#fff" : T.dim, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 20, height: 20, borderRadius: c.today ? "50%" : 0, background: c.today ? T.ember : "transparent", fontWeight: c.today ? 600 : 400, boxShadow: c.today ? "0 0 10px rgba(255,90,31,.5)" : "none", position: "relative", zIndex: 1 }}>{c.d.getDate()}</span>
@@ -304,7 +306,7 @@ export default function ScheduleCalendar({ view, setView }) {
             <div className="sc-body" style={{ padding: "4px 9px 8px", overflow: "auto", minHeight: 0, flex: 1, maxHeight: isMobile ? "55vh" : undefined }}>
               {weekDays.map((d) => {
                 const k = key(d), isT = k === key(today);
-                const evs = events.filter((e) => e.date === k && show(e));
+                const evs = events.filter((e) => e.date === k && show(e)).sort(byTime);
                 return (
                   <div key={k} onClick={() => setSelectedDate(k)} style={{ padding: "7px 5px 5px", borderBottom: "1px solid " + T.line, cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: evs.length ? 4 : 0 }}>
