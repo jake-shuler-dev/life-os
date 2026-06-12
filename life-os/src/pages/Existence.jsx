@@ -73,7 +73,7 @@ export default function Existence() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", paddingTop: 14, fontFamily: "'Hanken Grotesk',system-ui,sans-serif", color: T.text }}>
-      <style>{`.ex::-webkit-scrollbar{width:8px;height:8px}.ex::-webkit-scrollbar-thumb{background:${T.line2};border-radius:8px}.ex-in:focus{border-color:${T.ember}!important}`}</style>
+      <style>{`.ex::-webkit-scrollbar{width:8px;height:8px}.ex::-webkit-scrollbar-thumb{background:${T.line2};border-radius:8px}.ex-in:focus{border-color:${T.ember}!important}@media(max-width:760px){.ex-year{grid-template-columns:repeat(2,1fr)!important}}`}</style>
       <div style={{ width: "100%", maxWidth: 1180, margin: "0 auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {/* header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap", flexShrink: 0 }}>
@@ -242,7 +242,7 @@ function YearView({ ctx, yearA, setYearA }) {
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <NavBar label={String(yearA)} onPrev={() => setYearA(yearA - 1)} onNext={() => setYearA(yearA + 1)} onToday={() => setYearA(today.getFullYear())} />
       <div className="ex" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 14 }}>
+        <div className="ex-year" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14 }}>
           {months.map((mo) => <MiniMonth key={key(mo)} mo={mo} ctx={ctx} cellH={20} square />)}
         </div>
       </div>

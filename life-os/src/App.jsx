@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase, Baby, LayoutGrid,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase, Baby, LayoutGrid, Users,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import Existence from "./pages/Existence.jsx";
+import PPP from "./pages/PPP.jsx";
 import Vision from "./pages/Vision.jsx";
 import HomeControls from "./pages/HomeControls.jsx";
 import Today from "./pages/Today.jsx";
@@ -44,6 +45,8 @@ const MODULES = [
     sub: [{ t: "Time Blocks", d: "days · week · day — one-hour blocks", live: true }] },
   { id: "kids", tab: "KIDS", title: "Kids", icon: Baby, isKids: true,
     sub: [{ t: "Kid Profiles", d: "notes, sizes, activities", live: true }] },
+  { id: "ppp", tab: "PPP", title: "Parenting Plan", icon: Users, isPpp: true,
+    sub: [{ t: "Year + Events", d: "custody calendar & holidays", live: true }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
   { id: "work", tab: "WORK", title: "Work", icon: Briefcase, isWork: true,
@@ -209,6 +212,8 @@ export default function App() {
             <Nutrition />
           ) : mod.isKids ? (
             <Kids />
+          ) : mod.isPpp ? (
+            <PPP />
           ) : (
             <Section mod={mod} filter={filter} setFilter={setFilter} />
           )}
