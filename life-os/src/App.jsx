@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Newspaper,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
@@ -10,7 +10,8 @@ import HomeControls from "./pages/HomeControls.jsx";
 import Today from "./pages/Today.jsx";
 import AiChat from "./pages/AiChat.jsx";
 import Shopping from "./pages/Shopping.jsx";
-import News from "./pages/News.jsx";
+import Work from "./pages/Work.jsx";
+import Style from "./pages/Style.jsx";
 import Nutrition from "./pages/Nutrition.jsx";
 import Health from "./pages/Health.jsx";
 import Login from "./components/Login.jsx";
@@ -39,17 +40,19 @@ const MODULES = [
     sub: [{ t: "Calendar", d: "month / kids-with-me" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
+  { id: "work", tab: "WORK", title: "Work", icon: Briefcase, isWork: true,
+    sub: [{ t: "Tasks & Notes", d: "your work workspace", live: true }] },
   { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse, isHealth: true,
     sub: [{ t: "Workouts", d: "cycles into Today, one per day", live: true }] },
   { id: "food", tab: "NUTRITION", title: "Food & Nutrition", icon: Utensils, isNutrition: true,
     sub: [{ t: "Meals", d: "options that feed Today's Meals", live: true }] },
+  { id: "style", tab: "STYLE", title: "Style", icon: Shirt, isStyle: true,
+    sub: [{ t: "Pack for me", d: "trip packing list", live: true }] },
   { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target, isVision: true,
     sub: [{ t: "Vision Board", d: "images · text · drawing — anything goes" }] },
   { id: "home", tab: "HOME", title: "Home Controls", icon: House, isHome: true },
   { id: "shopping", tab: "SHOPPING", title: "Shopping", icon: ShoppingCart, isShopping: true,
     sub: [{ t: "Stores", d: "Amazon · Instacart", live: true }] },
-  { id: "news", tab: "NEWS", title: "News", icon: Newspaper, isNews: true,
-    sub: [{ t: "Headlines", d: "sports · pop · economy · politics · local", live: true }] },
   { id: "ai", tab: "AI", title: "AI Assistant", icon: Bot, isAi: true, sub: [{ t: "Chat", d: "Claude · ChatGPT · Grok", live: true }] },
 ];
 
@@ -188,8 +191,10 @@ export default function App() {
             <AiChat />
           ) : mod.isShopping ? (
             <Shopping />
-          ) : mod.isNews ? (
-            <News />
+          ) : mod.isWork ? (
+            <Work />
+          ) : mod.isStyle ? (
+            <Style />
           ) : mod.isHealth ? (
             <Health />
           ) : mod.isNutrition ? (

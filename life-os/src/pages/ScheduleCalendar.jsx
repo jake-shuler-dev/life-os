@@ -24,7 +24,7 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const key = (d) => d.toISOString().slice(0, 10);
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const startOfWeek = (d) => addDays(d, -d.getDay());
-function parseTime(s) { const m = String(s).trim().match(/(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i); if (!m) return 12; let h = +m[1]; const min = m[2] ? +m[2] : 0; const ap = m[3] ? m[3].toLowerCase() : ""; if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0; return h + min / 60; }
+function parseTime(s) { const m = String(s).trim().match(/(\d{1,2})(?::(\d{2}))?\s*([ap])m?/i); if (!m) return 12; let h = +m[1]; const min = m[2] ? +m[2] : 0; const ap = m[3] ? m[3].toLowerCase() : ""; if (ap === "p" && h < 12) h += 12; if (ap === "a" && h === 12) h = 0; return h + min / 60; }
 function evtMin(e) { const t = String(e.time || "").trim().toLowerCase(); if (!t || t.includes("all")) return -1; return parseTime(e.time); }
 function byTime(a, b) { return evtMin(a) - evtMin(b); }
 const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; };

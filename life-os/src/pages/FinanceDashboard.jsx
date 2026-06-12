@@ -300,12 +300,9 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
           @media (max-width: 760px){ .dgrid { grid-template-columns: 1fr; } .c4,.c6,.c12 { grid-column: span 1; } .topgrid { grid-template-columns: 1fr; } .hero-grid { grid-template-columns: 1fr !important; } }
         `}</style>
 
-        <div style={{ maxWidth: 1560, margin: "0 auto", padding: "22px 22px 40px" }}>
+        <div style={{ maxWidth: 1560, margin: "0 auto", padding: "8px 22px 26px" }}>
           {/* header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 500, letterSpacing: "-.01em" }}>Personal Finance</span>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
               <button onClick={exportCSV} title="Export all finance data to a CSV file"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Pencil, Trash2, Check, X, CalendarClock, Utensils, Dumbbell, Sparkles, ChevronLeft, ChevronRight, Volume2, Square, Trophy, Landmark, TrendingUp, MapPin } from "lucide-react";
+import { Pencil, Trash2, Check, X, CalendarClock, Utensils, Dumbbell, Sparkles, ChevronLeft, ChevronRight, Volume2, Square } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const T = {
@@ -35,7 +35,6 @@ export default function Today() {
   const [draft, setDraft] = useState("");
   const [agenda, setAgenda] = useState(null);
   const [weather, setWeather] = useState(null);
-  const [news, setNews] = useState(null);
   const [meals, setMeals] = useState(null);
   const [workouts, setWorkouts] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -48,7 +47,7 @@ export default function Today() {
       setData({ mantra: o.mantra || "", mealOff: o.mealOff || { b: 0, l: 0, d: 0 }, woOff: o.woOff || 0, agendaDone: ad });
     } } catch (e) {}
     setLoaded(true);
-    loadAgenda(); loadWeather(); loadNews(); loadMeals(); loadWorkouts();
+    loadAgenda(); loadWeather(); loadMeals(); loadWorkouts();
   })(); }, []);
 
   async function token() { const { data: s } = await supabase.auth.getSession(); return (s && s.session && s.session.access_token) || ""; }
@@ -79,9 +78,6 @@ export default function Today() {
       setWeather({ now: Math.round(d.current.temperature_2m), code: d.current.weather_code, hi: Math.round(dy.temperature_2m_max[0]), lo: Math.round(dy.temperature_2m_min[0]), pop: dy.precipitation_probability_max[0], hours, tmrw: { hi: Math.round(dy.temperature_2m_max[1]), lo: Math.round(dy.temperature_2m_min[1]), code: dy.weather_code[1], pop: dy.precipitation_probability_max[1] } });
     } catch (e) { setWeather(null); }
   }
-  async function loadNews() {
-    try { const tok = await token(); const r = await fetch("/api/news", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: "{}" }); const j = await r.json(); setNews(r.ok ? j : {}); } catch (e) { setNews({}); }
-  }
   async function loadMeals() {
     try { const r = await window.storage.get("nutrition_v1", false); let o = { breakfast: [], lunch: [], dinner: [] }; if (r && r.value) { const p = JSON.parse(r.value); o = { breakfast: p.breakfast || [], lunch: p.lunch || [], dinner: p.dinner || [] }; } setMeals(o); } catch (e) { setMeals({ breakfast: [], lunch: [], dinner: [] }); }
   }
@@ -105,12 +101,17 @@ export default function Today() {
     const dstr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
     parts.push(`${greet}, Jake. Today is ${dstr}.`);
     if (weather) parts.push(`It's ${weather.now}° and ${wx(weather.code).t.toLowerCase()} in Franklin right now, with a high near ${weather.hi}° and a low around ${weather.lo}°${weather.pop >= 20 ? `, and about a ${weather.pop}% chance of precipitation` : ""}.`);
-    if (agenda) { if (agenda.length === 0) parts.push("Your calendar is clear today."); else { const first = agenda.find((a) => parseClock(a.time) != null); parts.push(`You have ${agenda.length} thing${agenda.length > 1 ? "s" : ""} on your agenda${first ? `, starting with ${first.title} at ${first.time}` : ""}.`); } }
+    if (agenda) {
+      if (agenda.length === 0) parts.push("Your calendar is clear today.");
+      else {
+        parts.push(`You have ${agenda.length} item${agenda.length > 1 ? "s" : ""} on your agenda today.`);
+        agenda.forEach((a) => { const tt = a.time && !String(a.time).toLowerCase().includes("all") ? "at " + a.time : "all day"; parts.push(`${a.title}, ${tt}.`); });
+      }
+    }
     const b = nameOf(pick(meals && meals.breakfast, (data.mealOff || {}).b)), l = nameOf(pick(meals && meals.lunch, (data.mealOff || {}).l)), dn = nameOf(pick(meals && meals.dinner, (data.mealOff || {}).d));
     const ml = [b && "breakfast " + b, l && "lunch " + l, dn && "dinner " + dn].filter(Boolean);
     if (ml.length) parts.push(`On the menu: ${ml.join(", ")}.`);
     const wo = nameOf(pick(workouts, data.woOff)); if (wo) parts.push(`Today's workout is ${wo}.`);
-    if (data.mantra) parts.push(`Keep your mantra in mind: ${data.mantra}.`);
     return parts.join(" ");
   }, [weather, agenda, data, meals, workouts]);
 
@@ -132,20 +133,12 @@ export default function Today() {
         @media(max-width:1000px){.tw{grid-template-columns:1fr}.tn{grid-template-columns:1fr 1fr}}
         @media(max-width:620px){.tn{grid-template-columns:1fr}}`}</style>
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 13 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Fraunces',serif", fontSize: 26, fontWeight: 500 }}>{greet}, Jake</div>
           <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: T.faint, letterSpacing: ".1em", textTransform: "uppercase", marginTop: 3 }}>{today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
         </div>
-      </div>
-
-      {/* overview + read aloud */}
-      <div style={{ background: "linear-gradient(135deg,var(--panel),var(--bg2))", border: "1px solid " + T.line, borderRadius: 15, padding: "16px 18px", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: T.dim, flex: 1 }}>Daily Overview</span>
-          <button onClick={speak} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: speaking ? T.ember : "transparent", border: "1px solid " + T.ember, color: speaking ? "#fff" : T.ember, borderRadius: 9, padding: "6px 12px", fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer" }}>{speaking ? <Square size={12} /> : <Volume2 size={13} />}{speaking ? "Stop" : "Read aloud"}</button>
-        </div>
-        <div style={{ fontSize: 14.5, lineHeight: 1.6, color: T.text }}>{overview}</div>
+        <button onClick={speak} title="Read my day aloud" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: speaking ? T.ember : "transparent", border: "1px solid " + T.ember, color: speaking ? "#fff" : T.ember, borderRadius: 10, padding: "9px 15px", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}>{speaking ? <Square size={13} /> : <Volume2 size={14} />}{speaking ? "Stop" : "Read my day"}</button>
       </div>
 
       {/* weather: now + tomorrow + hourly */}
@@ -158,15 +151,6 @@ export default function Today() {
               <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Now · {wx(weather.code).t} · {weather.hi}°/{weather.lo}°</div>
             </div>
           </div>
-          {weather.tmrw && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, paddingLeft: 14, borderLeft: "1px solid " + T.line }}>
-              <span style={{ fontSize: 24 }}>{wx(weather.tmrw.code).e}</span>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1 }}>{weather.tmrw.hi}°/{weather.tmrw.lo}°</div>
-                <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Tomorrow · {wx(weather.tmrw.code).t}{weather.tmrw.pop >= 20 ? ` · ${weather.tmrw.pop}%` : ""}</div>
-              </div>
-            </div>
-          )}
           {weather.hours && weather.hours.map((h, i) => (
             <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 52, paddingLeft: 12, borderLeft: "1px solid " + T.line, flexShrink: 0 }}>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: T.faint }}>{new Date(h.t).toLocaleTimeString("en-US", { hour: "numeric" })}</span>
@@ -175,6 +159,15 @@ export default function Today() {
               {h.pop >= 20 && <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.dim }}>{h.pop}%</span>}
             </div>
           ))}
+          {weather.tmrw && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: "auto", paddingLeft: 16, borderLeft: "1px solid " + T.line2 }}>
+              <span style={{ fontSize: 24 }}>{wx(weather.tmrw.code).e}</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1 }}>{weather.tmrw.hi}°/{weather.tmrw.lo}°</div>
+                <div style={{ fontSize: 11, color: T.dim, marginTop: 3 }}>Tomorrow · {wx(weather.tmrw.code).t}{weather.tmrw.pop >= 20 ? ` · ${weather.tmrw.pop}%` : ""}</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -216,23 +209,32 @@ export default function Today() {
         {/* meals + workout */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Panel title="Today's Meals" Icon={Utensils} accent={T.ember}>
-            {meals == null ? <Muted>Loading…</Muted> : (!meals.breakfast.length && !meals.lunch.length && !meals.dinner.length) ? <Muted>Add meal options in the Nutrition tab and they'll be suggested here.</Muted> : (
-              <div>
-                {[["Breakfast", "b", meals.breakfast], ["Lunch", "l", meals.lunch], ["Dinner", "d", meals.dinner]].map(([label, k, arr], i) => {
-                  const nm = nameOf(pick(arr, (data.mealOff || {})[k]));
-                  return (
-                    <div key={k} style={{ padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.line : "none" }}>
-                      <div style={lbl}>{label}</div>
+            {meals == null ? <Muted>Loading…</Muted> : (!meals.breakfast.length && !meals.lunch.length && !meals.dinner.length) ? <Muted>Add meal options in the Nutrition tab and they'll be suggested here.</Muted> : (() => {
+              const slots = [["Breakfast", "b", meals.breakfast], ["Lunch", "l", meals.lunch], ["Dinner", "d", meals.dinner]];
+              const sel = slots.map(([label, k, arr]) => ({ label, k, arr, m: pick(arr, (data.mealOff || {})[k]) }));
+              const tot = sel.reduce((t, s) => { const m = s.m || {}; t.cal += +m.cal || 0; t.p += +m.p || 0; t.c += +m.c || 0; t.f += +m.f || 0; return t; }, { cal: 0, p: 0, c: 0, f: 0 });
+              return (
+                <div>
+                  {sel.map((s) => { const has = s.m && ((+s.m.cal || 0) + (+s.m.p || 0) + (+s.m.c || 0) + (+s.m.f || 0) > 0); return (
+                    <div key={s.k} style={{ padding: "8px 0", borderBottom: "1px solid " + T.line }}>
+                      <div style={lbl}>{s.label}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <button onClick={() => nudgeMeal(k, -1)} disabled={!arr.length} style={navMini}><ChevronLeft size={14} /></button>
-                        <span style={{ flex: 1, fontSize: 14, color: nm ? T.text : T.faint }}>{nm || "—"}</span>
-                        <button onClick={() => nudgeMeal(k, 1)} disabled={!arr.length} style={navMini}><ChevronRight size={14} /></button>
+                        <button onClick={() => nudgeMeal(s.k, -1)} disabled={!s.arr.length} style={navMini}><ChevronLeft size={14} /></button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, color: s.m ? T.text : T.faint }}>{nameOf(s.m) || "—"}</div>
+                          {has ? <div style={macroLine}>{Math.round(+s.m.cal || 0)} cal · {Math.round(+s.m.p || 0)}p · {Math.round(+s.m.c || 0)}c · {Math.round(+s.m.f || 0)}f</div> : null}
+                        </div>
+                        <button onClick={() => nudgeMeal(s.k, 1)} disabled={!s.arr.length} style={navMini}><ChevronRight size={14} /></button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ); })}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 10 }}>
+                    <span style={{ ...lbl, marginBottom: 0, flex: 1 }}>Day total</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 700, color: T.ember }}>{Math.round(tot.cal)} cal · {Math.round(tot.p)}p · {Math.round(tot.c)}c · {Math.round(tot.f)}f</span>
+                  </div>
+                </div>
+              );
+            })()}
           </Panel>
 
           <Panel title="Today's Workout" Icon={Dumbbell} accent={T.ember}>
@@ -252,30 +254,8 @@ export default function Today() {
           </Panel>
         </div>
       </div>
-
-      {/* news */}
-      <div className="tn">
-        <NewsPanel title="Sports" Icon={Trophy} items={news && news.sports} loading={news == null} />
-        <NewsPanel title="Politics" Icon={Landmark} items={news && news.politics} loading={news == null} />
-        <NewsPanel title="Economy" Icon={TrendingUp} items={news && news.economics} loading={news == null} />
-        <NewsPanel title="Local" Icon={MapPin} items={news && news.local} loading={news == null} />
-      </div>
       <div style={{ height: 24 }} />
     </div>
-  );
-}
-
-function NewsPanel({ title, Icon, items, loading }) {
-  return (
-    <Panel title={title} Icon={Icon} accent={T.ember}>
-      {loading ? <Muted>Loading…</Muted> : (!items || items.length === 0) ? <Muted>No headlines right now.</Muted> : (
-        <div>
-          {items.slice(0, 6).map((h, i) => (
-            <a key={i} href={h.link} target="_blank" rel="noreferrer" style={{ display: "block", fontSize: 12.5, color: T.text, textDecoration: "none", padding: "6px 0", borderBottom: i < Math.min(items.length, 6) - 1 ? "1px solid " + T.line : "none", lineHeight: 1.35 }}>{h.title}{h.source ? <span style={{ color: T.faint, fontSize: 10.5 }}> · {h.source}</span> : null}</a>
-          ))}
-        </div>
-      )}
-    </Panel>
   );
 }
 
@@ -293,6 +273,7 @@ function Panel({ title, Icon, accent, children, pill }) {
 }
 function Muted({ children }) { return <div style={{ fontSize: 12.5, color: T.faint, fontStyle: "italic", lineHeight: 1.5 }}>{children}</div>; }
 const lbl = { fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--faint)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 };
+const macroLine = { fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "var(--dim)", marginTop: 2 };
 const iconBtn = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 const navMini = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 28, height: 28, borderRadius: 7, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
 function hexA(hex, a) { if (!hex || hex[0] !== "#") return "rgba(255,90,31," + a + ")"; const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
