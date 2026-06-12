@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase, Baby, LayoutGrid,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
 import Schedule from "./pages/Schedule.jsx";
+import Existence from "./pages/Existence.jsx";
 import Vision from "./pages/Vision.jsx";
 import HomeControls from "./pages/HomeControls.jsx";
 import Today from "./pages/Today.jsx";
@@ -14,6 +15,7 @@ import Work from "./pages/Work.jsx";
 import Style from "./pages/Style.jsx";
 import Nutrition from "./pages/Nutrition.jsx";
 import Health from "./pages/Health.jsx";
+import Kids from "./pages/Kids.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
 
@@ -36,8 +38,12 @@ const MODULES = [
       { t: "Due Today", d: "bills & card payments from Finances" },
     ],
   },
-  { id: "schedule", tab: "SCHEDULE", title: "Schedule", icon: CalendarDays, isSchedule: true,
-    sub: [{ t: "Calendar", d: "month / kids-with-me" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
+  { id: "schedule", tab: "SCHEDULES", title: "Schedules", icon: CalendarDays, isSchedule: true,
+    sub: [{ t: "Calendar", d: "all · personal · work · kids" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
+  { id: "existence", tab: "EXISTENCE", title: "Existence", icon: LayoutGrid, isExistence: true,
+    sub: [{ t: "Time Blocks", d: "days · week · day — one-hour blocks", live: true }] },
+  { id: "kids", tab: "KIDS", title: "Kids", icon: Baby, isKids: true,
+    sub: [{ t: "Kid Profiles", d: "notes, sizes, activities", live: true }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
   { id: "work", tab: "WORK", title: "Work", icon: Briefcase, isWork: true,
@@ -183,6 +189,8 @@ export default function App() {
             <Today />
           ) : mod.isSchedule ? (
             <Schedule />
+          ) : mod.isExistence ? (
+            <Existence />
           ) : mod.isVision ? (
             <Vision />
           ) : mod.isHome ? (
@@ -199,6 +207,8 @@ export default function App() {
             <Health />
           ) : mod.isNutrition ? (
             <Nutrition />
+          ) : mod.isKids ? (
+            <Kids />
           ) : (
             <Section mod={mod} filter={filter} setFilter={setFilter} />
           )}

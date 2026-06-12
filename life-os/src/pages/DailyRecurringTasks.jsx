@@ -58,7 +58,7 @@ export default function DailyRecurringTasks({ view, setView }) {
 
   const SubNav = (
     <div style={{ display: "flex", gap: 5, background: T.panel, border: `1px solid ${T.line}`, borderRadius: 9, padding: 3 }}>
-      {[["calendar", "Calendar"], ["tasks", "Daily Recurring Tasks"]].map(([id, label]) => (
+      {[["all", "All"], ["personal", "Personal"], ["work", "Work"], ["kids", "Kids"], ["tasks", "Recurring Tasks"]].map(([id, label]) => (
         <button key={id} onClick={() => setView(id)} style={{ padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: view === id ? T.panelHi : "transparent", color: view === id ? T.ember : T.dim, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</button>
       ))}
     </div>

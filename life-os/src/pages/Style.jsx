@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Luggage, Sparkles, RefreshCw } from "lucide-react";
+import { Luggage, Sparkles, RefreshCw, FolderTree, Shirt, Wand2 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const T = {
@@ -30,8 +30,9 @@ export default function Style() {
 
   return (
     <div style={{ flex: 1, paddingTop: 18, fontFamily: "'Hanken Grotesk',system-ui,sans-serif", color: T.text }}>
-      <style>{`.st-in:focus{border-color:${T.ember}!important}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      <style>{`.st-in:focus{border-color:${T.ember}!important}@keyframes spin{to{transform:rotate(360deg)}}.st3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px}@media(max-width:820px){.st3{grid-template-columns:1fr}}`}</style>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* Pack for me — functional */}
         <div style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 16, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid " + T.line }}>
             <span style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(255,90,31,.14)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Luggage size={17} color={T.ember} /></span>
@@ -57,8 +58,28 @@ export default function Style() {
             {out && <pre style={{ whiteSpace: "pre-wrap", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, color: T.text, lineHeight: 1.6, marginTop: 16, background: T.bg, border: "1px solid " + T.line, borderRadius: 10, padding: "14px 16px" }}>{out}</pre>}
           </div>
         </div>
-        <div style={{ fontSize: 11.5, color: T.faint, marginTop: 12 }}>Uses your AI key (set ANTHROPIC_API_KEY in Vercel). The same one that powers the AI Assistant tab.</div>
+
+        {/* original placeholder cards */}
+        <div className="st3">
+          <Placeholder Icon={FolderTree} title="Categories" desc="organize the wardrobe" />
+          <Placeholder Icon={Shirt} title="My Closet" desc="everything you own" />
+          <Placeholder Icon={Wand2} title="AI Outfit Picker" desc="dressed by algorithm" />
+        </div>
+        <div style={{ height: 24 }} />
       </div>
+    </div>
+  );
+}
+
+function Placeholder({ Icon, title, desc }) {
+  return (
+    <div style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 14, padding: 16, opacity: .75 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <Icon size={16} color={T.dim} />
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", flex: 1 }}>{title}</span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: T.faint, letterSpacing: ".08em", textTransform: "uppercase" }}>Soon</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: T.faint }}>{desc}</div>
     </div>
   );
 }

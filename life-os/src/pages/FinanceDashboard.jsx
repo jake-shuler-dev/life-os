@@ -303,19 +303,7 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
         <div style={{ maxWidth: 1560, margin: "0 auto", padding: "8px 22px 26px" }}>
           {/* header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
-              <button onClick={exportCSV} title="Export all finance data to a CSV file"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                <Download size={13} /> Export CSV
-              </button>
-              {onEdit && (
-                <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                  <Table2 size={13} /> Edit data
-                </button>
-              )}
-            </div>
+            <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
           </div>
 
           {/* ============================ CASH FLOW ============================ */}
@@ -485,7 +473,19 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
               </Panel></div>
             </div>
 
-          <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 22 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
+            {onEdit && (
+              <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
+                style={{ display: "flex", alignItems: "center", gap: 7, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                <Table2 size={15} /> Edit data
+              </button>
+            )}
+            <button onClick={exportCSV} title="Export all finance data to a CSV file"
+              style={{ display: "flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${C.lineHi}`, color: C.mut, borderRadius: 10, padding: "10px 20px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <Download size={15} /> Export CSV
+            </button>
+          </div>
+          <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 12 }}>
             View only · tap "Edit data" to make changes — totals, net worth &amp; runway recalculate instantly
           </div>
           {importOpen && (

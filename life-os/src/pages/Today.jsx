@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Pencil, Trash2, Check, X, CalendarClock, Utensils, Dumbbell, Sparkles, ChevronLeft, ChevronRight, Volume2, Square } from "lucide-react";
+import { Pencil, Trash2, Check, X, CalendarClock, Utensils, Dumbbell, Sparkles, ChevronLeft, ChevronRight, Volume2, Square, Pill, StickyNote } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const T = {
@@ -30,13 +30,14 @@ export default function Today() {
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const [loaded, setLoaded] = useState(false);
-  const [data, setData] = useState({ mantra: "", mealOff: { b: 0, l: 0, d: 0 }, woOff: 0, agendaDone: { date: key(today), keys: [] } });
+  const [data, setData] = useState({ mantra: "", mealOff: { b: 0, l: 0, d: 0 }, woOff: 0, agendaDone: { date: key(today), keys: [] }, notes: "", suppDone: { date: key(today), keys: [] } });
   const [editMantra, setEditMantra] = useState(false);
   const [draft, setDraft] = useState("");
   const [agenda, setAgenda] = useState(null);
   const [weather, setWeather] = useState(null);
   const [meals, setMeals] = useState(null);
   const [workouts, setWorkouts] = useState(null);
+  const [supps, setSupps] = useState(null);
   const [speaking, setSpeaking] = useState(false);
 
   const save = (next) => { setData(next); window.storage.set(STORE, JSON.stringify(next), false).catch(() => {}); };
@@ -44,10 +45,11 @@ export default function Today() {
   useEffect(() => { (async () => {
     try { const r = await window.storage.get(STORE, false); if (r && r.value) { const o = JSON.parse(r.value);
       const ad = (o.agendaDone && o.agendaDone.date === key(today)) ? o.agendaDone : { date: key(today), keys: [] };
-      setData({ mantra: o.mantra || "", mealOff: o.mealOff || { b: 0, l: 0, d: 0 }, woOff: o.woOff || 0, agendaDone: ad });
+      const sd = (o.suppDone && o.suppDone.date === key(today)) ? o.suppDone : { date: key(today), keys: [] };
+      setData({ mantra: o.mantra || "", mealOff: o.mealOff || { b: 0, l: 0, d: 0 }, woOff: o.woOff || 0, agendaDone: ad, notes: o.notes || "", suppDone: sd });
     } } catch (e) {}
     setLoaded(true);
-    loadAgenda(); loadWeather(); loadMeals(); loadWorkouts();
+    loadAgenda(); loadWeather(); loadMeals(); loadWorkouts(); loadSupps();
   })(); }, []);
 
   async function token() { const { data: s } = await supabase.auth.getSession(); return (s && s.session && s.session.access_token) || ""; }
@@ -55,18 +57,27 @@ export default function Today() {
   async function loadAgenda() {
     const tk = key(today);
     let tasks = []; try { const r = await window.storage.get("daily_tasks_v1", false); if (r && r.value) tasks = JSON.parse(r.value); } catch (e) {}
-    const recur = (tasks || []).filter((t) => appliesToday(t, today)).map((t) => ({ title: t.name, time: t.time || "", kind: "task" }));
-    let cals = []; try { const r = await window.storage.get("schedule_v1", false); if (r && r.value) cals = (JSON.parse(r.value).calendars) || []; } catch (e) {}
+    const recur = (tasks || []).filter((t) => appliesToday(t, today)).map((t) => ({ title: t.name, time: t.time || "", kind: "task", cat: t.cat || null, catName: null, color: null }));
+    let sched = {}; try { const r = await window.storage.get("schedule_v1", false); if (r && r.value) sched = JSON.parse(r.value) || {}; } catch (e) {}
+    const cats = sched.categories || [];
+    const cals = sched.calendars || [];
+    const catOf = (id) => cats.find((c) => c.id === id) || null;
     let evs = [];
     if (cals.length) {
       try {
         const tok = await token();
-        const out = await Promise.all(cals.map(async (c) => { try { const r = await fetch("/api/ical", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify({ url: c.url }) }); const j = await r.json(); if (!r.ok) return []; return (j.events || []).filter((e) => e.date === tk).map((e) => ({ title: e.title, time: e.time, kind: "event" })); } catch (e) { return []; } }));
+        const out = await Promise.all(cals.map(async (c) => { try { const r = await fetch("/api/ical", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + tok }, body: JSON.stringify({ url: c.url }) }); const j = await r.json(); if (!r.ok) return []; const cc = catOf(c.cat); return (j.events || []).filter((e) => e.date === tk).map((e) => ({ title: e.title, time: e.time, kind: "event", cat: c.cat || null, catName: cc ? cc.name : null, color: cc ? cc.color : null })); } catch (e) { return []; } }));
         out.forEach((a) => evs.push(...a));
       } catch (e) {}
     }
     const all = [...evs, ...recur].sort((a, b) => { const ma = parseClock(a.time), mb = parseClock(b.time); if (ma == null && mb == null) return 0; if (ma == null) return -1; if (mb == null) return 1; return ma - mb; });
     setAgenda(all);
+  }
+  async function loadSupps() {
+    const list = [];
+    try { const r = await window.storage.get("health_v1", false); if (r && r.value) { (JSON.parse(r.value).supplements || []).forEach((s) => { if (s.name) list.push({ name: s.name, time: s.time || "", src: "Health" }); }); } } catch (e) {}
+    try { const r = await window.storage.get("nutrition_v1", false); if (r && r.value) { (JSON.parse(r.value).supplements || []).forEach((s) => { if (s.name) list.push({ name: s.name, time: s.time || "", src: "Nutrition" }); }); } } catch (e) {}
+    setSupps(list);
   }
   async function loadWeather() {
     try { const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=35.925&longitude=-86.869&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&timezone=auto");
@@ -92,6 +103,12 @@ export default function Today() {
   const akey = (a) => a.kind + "|" + (a.time || "") + "|" + a.title;
   const isDone = (a) => (data.agendaDone.keys || []).includes(akey(a));
   const toggleDone = (a) => { const k = akey(a); const keys = data.agendaDone.keys || []; const next = keys.includes(k) ? keys.filter((x) => x !== k) : [...keys, k]; save({ ...data, agendaDone: { date: key(today), keys: next } }); };
+
+  const skey = (s) => s.src + "|" + s.name;
+  const suppDoneSet = (data.suppDone && data.suppDone.keys) || [];
+  const isSuppDone = (s) => suppDoneSet.includes(skey(s));
+  const toggleSupp = (s) => { const k = skey(s); const next = suppDoneSet.includes(k) ? suppDoneSet.filter((x) => x !== k) : [...suppDoneSet, k]; save({ ...data, suppDone: { date: key(today), keys: next } }); };
+  const setNotes = (v) => save({ ...data, notes: v });
 
   const nudgeMeal = (which, dir) => { const mo = { ...(data.mealOff || { b: 0, l: 0, d: 0 }) }; mo[which] = (mo[which] || 0) + dir; save({ ...data, mealOff: mo }); };
   const nudgeWo = (dir) => save({ ...data, woOff: (data.woOff || 0) + dir });
@@ -130,7 +147,8 @@ export default function Today() {
       <style>{`.td::-webkit-scrollbar{width:8px}.td::-webkit-scrollbar-thumb{background:${T.line2};border-radius:8px}
         .tw{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
         .tn{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:14px}
-        @media(max-width:1000px){.tw{grid-template-columns:1fr}.tn{grid-template-columns:1fr 1fr}}
+        .t2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+        @media(max-width:1000px){.tw{grid-template-columns:1fr}.tn{grid-template-columns:1fr 1fr}.t2{grid-template-columns:1fr}}
         @media(max-width:620px){.tn{grid-template-columns:1fr}}`}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
@@ -192,18 +210,35 @@ export default function Today() {
       <div className="tw">
         {/* agenda */}
         <Panel title="Today's Agenda" Icon={CalendarClock} accent={T.ember}>
-          {agenda == null ? <Muted>Loading…</Muted> : agenda.length === 0 ? <Muted>Nothing scheduled today. Link calendars in Schedule or add recurring tasks.</Muted> : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {agenda.map((a, i) => { const done = isDone(a); return (
-                <div key={i} onClick={() => toggleDone(a)} title="Tap to mark done" style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: i < agenda.length - 1 ? "1px solid " + T.line : "none", cursor: "pointer", opacity: done ? 0.45 : 1, transition: "opacity .15s" }}>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.dim, width: 64, flexShrink: 0, textDecoration: done ? "line-through" : "none" }}>{a.time && !String(a.time).toLowerCase().includes("all") ? a.time : "All day"}</span>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: done ? T.dim : (a.kind === "event" ? T.ember : "transparent"), border: "1px solid " + (done ? T.dim : T.ember), flexShrink: 0 }} />
-                  <span style={{ fontSize: 13.5, flex: 1, textDecoration: done ? "line-through" : "none" }}>{a.title}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.faint, textTransform: "uppercase", letterSpacing: ".06em" }}>{a.kind}</span>
-                </div>
-              ); })}
-            </div>
-          )}
+          {agenda == null ? <Muted>Loading…</Muted> : agenda.length === 0 ? <Muted>Nothing scheduled today. Link calendars in Schedules or add recurring tasks.</Muted> : (() => {
+            const order = ["personal", "work", "kids"];
+            const groups = {};
+            agenda.forEach((a) => { const gk = a.cat || "other"; (groups[gk] = groups[gk] || []).push(a); });
+            const present = Object.keys(groups);
+            const gkeys = [...order.filter((k) => groups[k]), ...present.filter((k) => !order.includes(k) && k !== "other"), ...(groups.other ? ["other"] : [])];
+            const labelOf = (k) => k === "other" ? "Other" : (groups[k][0].catName || k);
+            const colorOf = (k) => k === "other" ? T.dim : (groups[k][0].color || T.ember);
+            return (
+              <div>
+                {gkeys.map((gk) => (
+                  <div key={gk} style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorOf(gk) }} />
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: T.dim }}>{labelOf(gk)}</span>
+                    </div>
+                    {groups[gk].map((a, i) => { const done = isDone(a); const dot = a.color || colorOf(gk); return (
+                      <div key={i} onClick={() => toggleDone(a)} title="Tap to mark done" style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 4px", borderBottom: i < groups[gk].length - 1 ? "1px solid " + T.line : "none", cursor: "pointer", opacity: done ? 0.45 : 1, transition: "opacity .15s" }}>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: T.dim, width: 64, flexShrink: 0, textDecoration: done ? "line-through" : "none" }}>{a.time && !String(a.time).toLowerCase().includes("all") ? a.time : "All day"}</span>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: done ? T.dim : dot, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13.5, flex: 1, textDecoration: done ? "line-through" : "none" }}>{a.title}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.faint, textTransform: "uppercase", letterSpacing: ".06em" }}>{a.kind}</span>
+                      </div>
+                    ); })}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Panel>
 
         {/* meals + workout */}
@@ -253,6 +288,27 @@ export default function Today() {
             )}
           </Panel>
         </div>
+      </div>
+
+      <div className="t2">
+        <Panel title="Today's Supplements" Icon={Pill} accent={T.ember}>
+          {supps == null ? <Muted>Loading…</Muted> : supps.length === 0 ? <Muted>Add supplements in the Health or Nutrition tabs and check them off here.</Muted> : (
+            <div>
+              {supps.map((s, i) => { const done = isSuppDone(s); return (
+                <div key={i} onClick={() => toggleSupp(s)} title="Tap to mark taken" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: i < supps.length - 1 ? "1px solid " + T.line : "none", cursor: "pointer", opacity: done ? 0.45 : 1, transition: "opacity .15s" }}>
+                  <span style={{ width: 16, height: 16, borderRadius: 5, border: "1.5px solid " + (done ? T.ember : T.line2), background: done ? T.ember : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, flexShrink: 0 }}>{done ? "✓" : ""}</span>
+                  <span style={{ fontSize: 13.5, flex: 1, textDecoration: done ? "line-through" : "none" }}>{s.name}</span>
+                  {s.time ? <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: T.faint }}>{s.time}</span> : null}
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: T.faint, textTransform: "uppercase", letterSpacing: ".06em" }}>{s.src}</span>
+                </div>
+              ); })}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Notes" Icon={StickyNote} accent={T.ember}>
+          <textarea value={data.notes || ""} onChange={(e) => setNotes(e.target.value)} placeholder="Jot anything for today…" style={{ width: "100%", minHeight: 150, resize: "vertical", background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 8, padding: "10px 12px", fontFamily: "'Hanken Grotesk',sans-serif", fontSize: 13.5, lineHeight: 1.55, outline: "none", boxSizing: "border-box" }} />
+        </Panel>
       </div>
       <div style={{ height: 24 }} />
     </div>

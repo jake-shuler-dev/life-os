@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Utensils, Coffee, Sun, Moon } from "lucide-react";
+import { Plus, Trash2, Utensils, Coffee, Sun, Moon, Pill } from "lucide-react";
 
 const STORE = "nutrition_v1";
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -9,11 +9,11 @@ const T = {
 };
 
 export default function Nutrition() {
-  const [data, setData] = useState({ breakfast: [], lunch: [], dinner: [] });
+  const [data, setData] = useState({ breakfast: [], lunch: [], dinner: [], supplements: [] });
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => { (async () => {
-    try { const r = await window.storage.get(STORE, false); if (r && r.value) { const p = JSON.parse(r.value); setData({ breakfast: p.breakfast || [], lunch: p.lunch || [], dinner: p.dinner || [] }); } } catch (e) {}
+    try { const r = await window.storage.get(STORE, false); if (r && r.value) { const p = JSON.parse(r.value); setData({ breakfast: p.breakfast || [], lunch: p.lunch || [], dinner: p.dinner || [], supplements: p.supplements || [] }); } } catch (e) {}
     setLoaded(true);
   })(); }, []);
 
@@ -21,6 +21,9 @@ export default function Nutrition() {
   const add = (meal) => save({ ...data, [meal]: [...data[meal], { id: uid(), name: "", cal: "", p: "", c: "", f: "" }] });
   const upd = (meal, id, patch) => save({ ...data, [meal]: data[meal].map((x) => x.id === id ? { ...x, ...patch } : x) });
   const del = (meal, id) => save({ ...data, [meal]: data[meal].filter((x) => x.id !== id) });
+  const spAdd = () => save({ ...data, supplements: [...(data.supplements || []), { id: uid(), name: "", time: "" }] });
+  const spUpd = (id, patch) => save({ ...data, supplements: (data.supplements || []).map((s) => s.id === id ? { ...s, ...patch } : s) });
+  const spDel = (id) => save({ ...data, supplements: (data.supplements || []).filter((s) => s.id !== id) });
   const MF = [["cal", "Cal"], ["p", "Protein g"], ["c", "Carbs g"], ["f", "Fat g"]];
 
   if (!loaded) return <div style={{ color: T.dim, padding: 40 }}>Loading…</div>;
@@ -62,6 +65,26 @@ export default function Nutrition() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 14, overflow: "hidden", marginTop: 16, maxWidth: 520 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", borderBottom: "1px solid " + T.line }}>
+            <Pill size={16} color={T.ember} />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", flex: 1 }}>Supplements</span>
+            <span style={{ fontSize: 11, color: T.faint }}>{(data.supplements || []).length}</span>
+          </div>
+          <div style={{ padding: 12 }}>
+            <div style={{ fontSize: 11.5, color: T.faint, marginBottom: 9 }}>Shows in Today's Supplements (alongside Health's). Tick them off there each day.</div>
+            {(data.supplements || []).length === 0 && <div style={{ fontSize: 12.5, color: T.faint, fontStyle: "italic", padding: "4px 2px 8px" }}>No supplements yet.</div>}
+            {(data.supplements || []).map((s) => (
+              <div key={s.id} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <input className="nut-in" value={s.name} placeholder="e.g. Vitamin D 2000 IU" onChange={(e) => spUpd(s.id, { name: e.target.value })} style={{ flex: "1 1 60%", minWidth: 0, background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 7, padding: "8px 10px", fontFamily: "inherit", fontSize: 13.5, outline: "none" }} />
+                <input className="nut-in" value={s.time || ""} placeholder="when" onChange={(e) => spUpd(s.id, { time: e.target.value })} style={{ width: 92, background: T.bg, border: "1px solid " + T.line2, color: T.dim, borderRadius: 7, padding: "8px 10px", fontFamily: "inherit", fontSize: 12.5, outline: "none" }} />
+                <button onClick={() => spDel(s.id)} style={{ background: "transparent", border: "none", color: T.faint, cursor: "pointer", display: "flex", flexShrink: 0 }}><Trash2 size={14} /></button>
+              </div>
+            ))}
+            <button onClick={spAdd} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, background: "transparent", border: "1px dashed " + T.line2, color: T.dim, borderRadius: 8, padding: "9px 12px", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit", width: "100%", justifyContent: "center" }}><Plus size={14} /> Add supplement</button>
+          </div>
         </div>
       </div>
     </div>

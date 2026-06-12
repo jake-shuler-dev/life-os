@@ -38,7 +38,7 @@ export default function ScheduleCalendar({ view, setView }) {
   const [events, setEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
-  const [filter, setFilter] = useState("all");
+  const filter = view === "tasks" ? "all" : (view || "all");
   const [selectedDate, setSelectedDate] = useState(key(today));
   const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [mineOpen, setMineOpen] = useState(false);
@@ -146,7 +146,7 @@ export default function ScheduleCalendar({ view, setView }) {
 
   const subNav = (
     <div style={{ display: "flex", gap: 5, background: T.panel, border: "1px solid " + T.line, borderRadius: 9, padding: 3 }}>
-      {[["calendar", "Calendar"], ["tasks", "Daily Recurring Tasks"]].map(([id, label]) => (
+      {[["all", "All"], ["personal", "Personal"], ["work", "Work"], ["kids", "Kids"], ["tasks", "Recurring Tasks"]].map(([id, label]) => (
         <button key={id} onClick={() => setView(id)} style={{ padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: view === id ? T.panelHi : "transparent", color: view === id ? T.ember : T.dim, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</button>
       ))}
     </div>
@@ -199,11 +199,6 @@ export default function ScheduleCalendar({ view, setView }) {
               <div style={hintStyle}>Tip: while this editor is open, click a day on the calendar to prefill the date above.</div>
             </div>
           )}
-        </div>
-
-        <div style={{ display: "flex", gap: 5, background: T.panel, border: "1px solid " + T.line, borderRadius: 10, padding: 4 }}>
-          <button onClick={() => setFilter("all")} style={pill(filter === "all")}>All</button>
-          {categories.map((c) => <button key={c.id} onClick={() => setFilter(c.id)} style={pill(filter === c.id)}><span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color }} />{c.name}</button>)}
         </div>
 
         <div style={{ position: "relative" }}>
