@@ -1,24 +1,36 @@
 import React, { useState, useEffect } from "react";
 import {
   Sunrise, CalendarDays, Wallet, HeartPulse, Utensils, Shirt, Target, Car,
-  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot,
+  House, ShoppingCart, AtSign, ArrowUpRight, LogOut, Maximize2, Minimize2, Bot, Sun, Moon, Briefcase, Baby, LayoutGrid, Users,
 } from "lucide-react";
 import Finance from "./pages/Finance.jsx";
+import Schedule from "./pages/Schedule.jsx";
+import Existence from "./pages/Existence.jsx";
+import PPP from "./pages/PPP.jsx";
+import Vision from "./pages/Vision.jsx";
+import HomeControls from "./pages/HomeControls.jsx";
+import Today from "./pages/Today.jsx";
 import AiChat from "./pages/AiChat.jsx";
+import Shopping from "./pages/Shopping.jsx";
+import Work from "./pages/Work.jsx";
+import Style from "./pages/Style.jsx";
+import Nutrition from "./pages/Nutrition.jsx";
+import Health from "./pages/Health.jsx";
+import Kids from "./pages/Kids.jsx";
 import Login from "./components/Login.jsx";
 import { supabase, supabaseReady } from "./lib/supabase.js";
 
 /* ------------------------------- palette --------------------------------- */
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", bright: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", emberDim: "rgba(255,90,31,.14)", good: "#54D6A0",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", bright: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", emberDim: "var(--emberDim)", good: "var(--good)",
 };
 
 /* ------------------------------- modules --------------------------------- */
 const MODULES = [
   {
-    id: "today", tab: "TODAY", title: "Today", icon: Sunrise,
+    id: "today", tab: "TODAY", title: "Today", icon: Sunrise, isToday: true,
     sub: [
       { t: "Daily Overview", d: "your whole day, compiled from every tab", live: true },
       { t: "On the Agenda", d: "events & what's next" },
@@ -27,22 +39,29 @@ const MODULES = [
       { t: "Due Today", d: "bills & card payments from Finances" },
     ],
   },
-  { id: "schedule", tab: "SCHEDULE", title: "Schedule", icon: CalendarDays, filters: ["All", "Me", "Kids"],
-    sub: [{ t: "Today at a Glance", d: "the day, distilled" }, { t: "Calendar", d: "month / week / day" }, { t: "Upcoming", d: "what's next" }, { t: "Notes", d: "quick capture" }] },
+  { id: "schedule", tab: "SCHEDULES", title: "Schedules", icon: CalendarDays, isSchedule: true,
+    sub: [{ t: "Calendar", d: "all · personal · work · kids" }, { t: "Daily Recurring Tasks", d: "feeds Today" }] },
+  { id: "existence", tab: "EXISTENCE", title: "Existence", icon: LayoutGrid, isExistence: true,
+    sub: [{ t: "Time Blocks", d: "days · week · day — one-hour blocks", live: true }] },
+  { id: "kids", tab: "KIDS", title: "Kids", icon: Baby, isKids: true,
+    sub: [{ t: "Kid Profiles", d: "notes, sizes, activities", live: true }] },
+  { id: "ppp", tab: "PPP", title: "Parenting Plan", icon: Users, isPpp: true,
+    sub: [{ t: "Year + Events", d: "custody calendar & holidays", live: true }] },
   { id: "finances", tab: "FINANCES", title: "Finances", icon: Wallet, isFinance: true,
     sub: [{ t: "Cash Flow & Net Worth", d: "your live finance dashboard", live: true }] },
-  { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse,
-    sub: [{ t: "Fitness · Goals", d: "targets & milestones" }, { t: "Fitness · Workout Plan", d: "the program" }, { t: "Fitness · Today's Workout", d: "what to do now" }, { t: "WHOOP Stats", d: "recovery · strain · sleep" }, { t: "Supplements", d: "stack & schedule" }] },
-  { id: "food", tab: "NUTRITION", title: "Food & Nutrition", icon: Utensils,
-    sub: [{ t: "Meals", d: "plan & log" }, { t: "Order Groceries", d: "restock the kitchen" }, { t: "Order Food", d: "delivery & takeout" }, { t: "Goals", d: "macros & intake" }, { t: "Supplements", d: "nutrition stack" }] },
-  { id: "style", tab: "STYLE", title: "Style", icon: Shirt,
-    sub: [{ t: "Categories", d: "organize the wardrobe" }, { t: "My Closet", d: "everything you own" }, { t: "AI Outfit Picker", d: "dressed by algorithm" }] },
-  { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target,
+  { id: "work", tab: "WORK", title: "Work", icon: Briefcase, isWork: true,
+    sub: [{ t: "Tasks & Notes", d: "your work workspace", live: true }] },
+  { id: "health", tab: "HEALTH", title: "Health & Wellness", icon: HeartPulse, isHealth: true,
+    sub: [{ t: "Workouts", d: "cycles into Today, one per day", live: true }] },
+  { id: "food", tab: "NUTRITION", title: "Food & Nutrition", icon: Utensils, isNutrition: true,
+    sub: [{ t: "Meals", d: "options that feed Today's Meals", live: true }] },
+  { id: "style", tab: "STYLE", title: "Style", icon: Shirt, isStyle: true,
+    sub: [{ t: "Pack for me", d: "trip packing list", live: true }] },
+  { id: "vision", tab: "VISION", title: "Goals & Vision Board", icon: Target, isVision: true,
     sub: [{ t: "Vision Board", d: "images · text · drawing — anything goes" }] },
-  { id: "vehicles", tab: "VEHICLES", title: "Vehicles", icon: Car, sub: [{ t: "Linked Vehicles", d: "connect & monitor" }] },
-  { id: "home", tab: "HOME", title: "Home Controls", icon: House, sub: [{ t: "Linked Home", d: "lights · climate · security" }] },
-  { id: "amazon", tab: "AMAZON", title: "Amazon", icon: ShoppingCart, sub: [{ t: "Amazon", d: "shop in an embedded browser" }] },
-  { id: "socials", tab: "SOCIALS", title: "Socials", icon: AtSign, sub: [{ t: "Linked Socials", d: "all feeds, one place" }] },
+  { id: "home", tab: "HOME", title: "Home Controls", icon: House, isHome: true },
+  { id: "shopping", tab: "SHOPPING", title: "Shopping", icon: ShoppingCart, isShopping: true,
+    sub: [{ t: "Stores", d: "Amazon · Instacart", live: true }] },
   { id: "ai", tab: "AI", title: "AI Assistant", icon: Bot, isAi: true, sub: [{ t: "Chat", d: "Claude · ChatGPT · Grok", live: true }] },
 ];
 
@@ -51,6 +70,11 @@ export default function App() {
   const [filter, setFilter] = useState("All");
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+
+  const [theme, setTheme] = useState("dark");
+  useEffect(() => { (async () => { try { const r = await window.storage.get("ui_theme_v1", false); if (r && (r.value === "light" || r.value === "dark")) setTheme(r.value); } catch (e) {} })(); }, []);
+  useEffect(() => { document.body.className = theme === "light" ? "theme-light" : "theme-dark"; }, [theme]);
+  const toggleTheme = () => setTheme((p) => { const next = p === "light" ? "dark" : "light"; try { window.storage.set("ui_theme_v1", next, false); } catch (e) {} return next; });
 
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(!supabaseReady);
@@ -105,14 +129,21 @@ export default function App() {
         .card:hover { border-color: ${T.ember} !important; transform: translateY(-2px); background: ${T.panelHi} !important; }
         .card:hover .arrow { color: ${T.ember} !important; transform: translate(2px,-2px); }
         .rise { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+        @media (max-width: 760px) {
+          .app-main { padding: 12px 12px 32px !important; }
+          .app-head { flex-wrap: wrap !important; gap: 10px !important; }
+          .app-tabs { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; }
+          .app-tabs::-webkit-scrollbar { height: 0; }
+          .app-tabs button { flex: 0 0 auto !important; padding: 11px 13px !important; letter-spacing: .12em !important; font-size: 10px !important; }
+        }
       `}</style>
 
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: `linear-gradient(${T.line} 1px, transparent 1px), linear-gradient(90deg, ${T.line} 1px, transparent 1px)`, backgroundSize: "46px 46px", opacity: .25, maskImage: "radial-gradient(ellipse at 50% 40%, #000 30%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at 50% 40%, #000 30%, transparent 80%)" }} />
       <div style={{ position: "absolute", top: -180, left: "50%", transform: "translateX(-50%)", width: 900, height: 360, background: `radial-gradient(ellipse, ${T.emberDim}, transparent 70%)`, pointerEvents: "none", animation: "glow 6s ease-in-out infinite" }} />
 
-      <div style={{ position: "relative", maxWidth: 1560, margin: "0 auto", padding: "20px 26px 40px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <div className="app-main" style={{ position: "relative", maxWidth: 1560, margin: "0 auto", padding: "20px 26px 40px", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         {/* HUD header — LIFE OS is the home button */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 14 }}>
+        <div className="app-head" style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 14 }}>
           <div className="mark" title="Home" onClick={goHome} style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="dot" style={{ width: 9, height: 9, background: T.ember, display: "inline-block", boxShadow: `0 0 12px ${T.ember}` }} />
             <span className="logo" style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".34em" }}>LIFE&nbsp;OS</span>
@@ -124,6 +155,9 @@ export default function App() {
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 9.5, letterSpacing: ".18em", color: T.good, borderLeft: `1px solid ${T.line2}`, paddingLeft: 16 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.good, animation: "pulse 2s infinite" }} /> ONLINE
           </span>
+          <button onClick={toggleTheme} title={theme === "light" ? "Switch to dark" : "Switch to light"} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 9px", fontFamily: "inherit", cursor: "pointer" }}>
+            {theme === "light" ? <Moon size={12} /> : <Sun size={12} />}
+          </button>
           <button onClick={toggleFs} title={fs ? "Exit full screen" : "Full screen"} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: `1px solid ${T.line2}`, color: T.dim, padding: "6px 9px", fontFamily: "inherit", cursor: "pointer" }}>
             {fs ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
           </button>
@@ -135,11 +169,11 @@ export default function App() {
         </div>
 
         {/* NAV TABS — evenly distributed */}
-        <div style={{ display: "flex", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+        <div className="app-tabs" style={{ display: "flex", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
           {MODULES.map((m) => {
             const on = active === m.id;
             return (
-              <button key={m.id} className="navlink" onClick={() => { setActive(m.id); setFilter("All"); }} style={{
+              <button key={m.id} className="navlink" onClick={() => { if (m.isLink) { window.open(m.url, "_blank", "noopener,noreferrer"); return; } setActive(m.id); setFilter("All"); }} style={{
                 flex: "1 1 0", textAlign: "center", padding: "13px 8px", fontFamily: "inherit", fontSize: 10.5, fontWeight: 500,
                 letterSpacing: ".2em", textTransform: "uppercase", whiteSpace: "nowrap", background: on ? T.bg2 : "transparent",
                 border: "none", borderBottom: `2px solid ${on ? T.ember : "transparent"}`, color: on ? T.ember : T.dim, cursor: "pointer", marginBottom: -1, transition: "color .15s",
@@ -151,11 +185,35 @@ export default function App() {
         {/* STAGE */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {active === null ? (
-            <Home dateStr={dateStr} />
+            <Home dateStr={dateStr} theme={theme} />
           ) : mod.isFinance ? (
             <div className="rise" style={{ marginTop: 18 }}><Finance /></div>
+          ) : mod.isToday ? (
+            <Today />
+          ) : mod.isSchedule ? (
+            <Schedule />
+          ) : mod.isExistence ? (
+            <Existence />
+          ) : mod.isVision ? (
+            <Vision />
+          ) : mod.isHome ? (
+            <HomeControls />
           ) : mod.isAi ? (
             <AiChat />
+          ) : mod.isShopping ? (
+            <Shopping />
+          ) : mod.isWork ? (
+            <Work />
+          ) : mod.isStyle ? (
+            <Style />
+          ) : mod.isHealth ? (
+            <Health />
+          ) : mod.isNutrition ? (
+            <Nutrition />
+          ) : mod.isKids ? (
+            <Kids />
+          ) : mod.isPpp ? (
+            <PPP />
           ) : (
             <Section mod={mod} filter={filter} setFilter={setFilter} />
           )}
@@ -172,11 +230,11 @@ export default function App() {
 }
 
 /* -------------------------------- home ----------------------------------- */
-function Home() {
+function Home({ theme }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 6, paddingBottom: 40 }}>
       <div className="rise" style={{ fontSize: 11, letterSpacing: ".42em", color: T.ember, marginBottom: 18 }}>WELCOME&nbsp;BACK</div>
-      <img className="rise" src="/signature-white.png" alt="signature" style={{ width: "min(44vw, 540px)", height: "auto", display: "block", filter: "drop-shadow(0 8px 34px rgba(0,0,0,.55))", animationDelay: ".08s" }} />
+      <img className="rise" src={theme === "light" ? "/signature-black.png" : "/signature-white.png"} alt="signature" style={{ width: "min(44vw, 540px)", height: "auto", display: "block", filter: theme === "light" ? "drop-shadow(0 6px 22px rgba(20,22,28,.18))" : "drop-shadow(0 8px 34px rgba(0,0,0,.55))", animationDelay: ".08s" }} />
       <div className="rise" style={{ fontSize: 10.5, letterSpacing: ".4em", color: T.faint, marginTop: 22, animationDelay: ".16s" }}>THE OPERATING SYSTEM FOR EVERYTHING</div>
     </div>
   );

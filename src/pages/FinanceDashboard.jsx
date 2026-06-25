@@ -2,22 +2,17 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from "recharts";
 import {
   TrendingUp, TrendingDown, Plus, X, Wallet, Building2, Landmark, CalendarClock,
-  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, Scale, Upload, Table2,
+  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, ChevronRight, Scale, Upload, Table2, Repeat, Download,
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
-const DARK = {
-  bg: "#141417", bg2: "#1A1A1F", panel: "#212127", panelHi: "#26262E",
-  line: "#2F2F38", lineHi: "#3A3A45", text: "#ECECEF", mut: "#8A8A95", mut2: "#6B6B75",
-  accent: "#FF6B2C", pos: "#54D6A0", neg: "#F2585F", posDim: "#54D6A022", negDim: "#F2585F22", shadow: "none",
+const PAL = {
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", lineHi: "var(--line2)", text: "var(--text)", mut: "var(--dim)", mut2: "var(--faint)",
+  accent: "var(--ember)", pos: "var(--pos)", neg: "var(--neg)", posDim: "var(--posDim)", negDim: "var(--negDim)", shadow: "var(--shadow)",
 };
-const LIGHT = {
-  bg: "#F3F1EC", bg2: "#EBE8E1", panel: "#FFFFFF", panelHi: "#FCFBF9",
-  line: "#E4E0D8", lineHi: "#D6D1C7", text: "#22201D", mut: "#6B675E", mut2: "#A39E93",
-  accent: "#DD5708", pos: "#0E9D63", neg: "#D23B41", posDim: "#0E9D6322", negDim: "#D23B4122",
-  shadow: "0 1px 2px rgba(0,0,0,.05)",
-};
-const ThemeCtx = createContext(DARK);
+const DARK = PAL, LIGHT = PAL;
+const ThemeCtx = createContext(PAL);
 const useC = () => useContext(ThemeCtx);
 
 const CAT_COLORS = {
@@ -29,6 +24,7 @@ const CATS = ["Household", "Housing", "Food", "Health", "Subscriptions", "Obliga
 /* ------------------------------- seed data ------------------------------- */
 const uid = () => Math.random().toString(36).slice(2, 9);
 const SEED = {
+  subscriptions: [],
   income: [
     { id: uid(), name: "NCF", amount: 13000 },
     { id: uid(), name: "Child Support (received)", amount: 4956.84 },
@@ -98,19 +94,13 @@ function NumInput({ value, onChange, style }) {
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setT(fmtNum(value)); }, [value]);
   return (
-    <input value={t} inputMode="decimal" placeholder="0"
-      onFocus={(e) => { focused.current = true; setT(value === 0 ? "" : String(value)); e.target.select(); }}
-      onBlur={() => { focused.current = false; const n = parseFloat(String(t).replace(/,/g, "")) || 0; onChange(n); setT(fmtNum(n)); }}
-      onChange={(e) => setT(e.target.value.replace(/[^0-9.]/g, ""))}
-      onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
-      style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
+    <span style={{ color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", ...style }}>{fmtNum(value) || "0"}</span>
   );
 }
 function TxtInput({ value, onChange, style }) {
   const C = useC();
   return (
-    <input value={value} onChange={(e) => onChange(e.target.value)}
-      style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", ...style }} />
+    <span style={{ width: "100%", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", ...style }}>{value}</span>
   );
 }
 function Card({ children, style }) {
@@ -138,7 +128,7 @@ function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false
 }
 
 /* --------------------------------- app ----------------------------------- */
-export default function FinanceDashboard({ onEdit }) {
+export default function FinanceDashboard({ onEdit, onOpenSubs }) {
   const [data, setData] = useState(SEED);
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -175,7 +165,7 @@ export default function FinanceDashboard({ onEdit }) {
   };
 
   const M = useMemo(() => {
-    const eff = (e) => e.amount * (e.split ? S.householdSplit : 1);
+    const eff = (e) => e.companyPaid ? 0 : e.amount * (e.split ? S.householdSplit : 1);
     const incomeTotal = data.income.reduce((s, i) => s + i.amount, 0);
     const itemizedEff = data.expenses.reduce((s, e) => s + eff(e), 0);
     // full itemized charges grouped by funding source (for card reconciliation)
@@ -190,16 +180,19 @@ export default function FinanceDashboard({ onEdit }) {
       return { id: c.id, name: c.name, payment, itemized, remainder: active ? payment - itemized : 0, active };
     });
     const cardRemainderTotal = cardRows.reduce((s, r) => s + r.remainder, 0);
-    const monthlyOut = itemizedEff + cardRemainderTotal;
-    const annualTotal = data.annual.reduce((s, a) => s + a.amount, 0);
-    const annualMonthly = annualTotal / 12;
+    const subs = data.subscriptions || [];
+    const monthlySubsTotal = subs.reduce((s, x) => s + (x.period === "monthly" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
+    const annualSubsTotal = subs.reduce((s, x) => s + (x.period === "annual" && !x.companyPaid ? (+x.amount || 0) : 0), 0);
+    const monthlyOut = itemizedEff + cardRemainderTotal + monthlySubsTotal;
+    const annualTotal = data.annual.reduce((s, a) => s + (a.companyPaid ? 0 : a.amount), 0) + annualSubsTotal;
+    const annualMonthly = (data.annual.reduce((s, a) => s + (a.companyPaid ? 0 : (a.split ? a.amount * S.householdSplit : a.amount)), 0) + annualSubsTotal) / 12;
     const effOut = monthlyOut + (S.includeAnnual ? annualMonthly : 0);
     const net = incomeTotal - effOut;
     const cash = data.accounts.reduce((s, a) => s + a.amount, 0);
     const assetsExCash = data.assets.reduce((s, a) => s + a.amount, 0);
     const assetsTotal = assetsExCash + cash;
     const cardDebt = data.cards.reduce((s, c) => s + (c.balance || 0), 0);
-    const liabManual = data.liabilities.reduce((s, l) => s + l.amount, 0);
+    const liabManual = data.liabilities.reduce((s, l) => s + (l.companyPaid ? 0 : l.amount), 0);
     const liabTotal = liabManual + (S.includeCardDebt ? cardDebt : 0);
     let netWorth = assetsTotal - liabTotal;
     if (S.halveNetWorth) netWorth /= 2;
@@ -208,17 +201,82 @@ export default function FinanceDashboard({ onEdit }) {
     const byCat = {};
     data.expenses.forEach((e) => { byCat[e.cat] = (byCat[e.cat] || 0) + eff(e); });
     if (cardRemainderTotal > 0) byCat["Card (other)"] = (byCat["Card (other)"] || 0) + cardRemainderTotal;
+    if (monthlySubsTotal > 0) byCat["Subscriptions"] = (byCat["Subscriptions"] || 0) + monthlySubsTotal;
     const catArr = Object.entries(byCat).map(([k, v]) => ({ name: k, value: v })).sort((a, b) => b.value - a.value);
     const cardSpend = taggedFull;
     const topAssets = [...data.assets, { name: "Cash & accounts", amount: cash }].filter((a) => a.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 5);
     const proj = []; let bal = cash;
     const months = isFinite(runwayMonths) ? Math.min(Math.ceil(runwayMonths) + 2, 120) : 24;
     for (let m = 0; m <= months; m++) { proj.push({ m, bal: Math.max(bal, 0) }); bal += net; if (bal < 0) { proj.push({ m: m + 1, bal: 0 }); break; } }
-    return { incomeTotal, monthlyOut, annualTotal, annualMonthly, effOut, net, cash, assetsTotal, cardDebt, liabTotal, netWorth, monthsCashNoIncome, runwayMonths, catArr, cardSpend, cardRows, cardRemainderTotal, topAssets, proj };
+    return { incomeTotal, monthlyOut, annualTotal, annualMonthly, monthlySubsTotal, annualSubsTotal, effOut, net, cash, assetsTotal, cardDebt, liabTotal, netWorth, monthsCashNoIncome, runwayMonths, catArr, cardSpend, cardRows, cardRemainderTotal, topAssets, proj };
   }, [data, S]);
 
   const negative = M.net < 0;
   const payOptions = useMemo(() => [...data.accounts.map((a) => a.name), ...data.cards.map((c) => c.name)].filter(Boolean), [data.accounts, data.cards]);
+
+  const exportCSV = () => {
+    const split = S.householdSplit != null ? S.householdSplit : 1;
+    const n2 = (v) => (Math.round((+v || 0) * 100) / 100).toFixed(2);
+    const esc = (v) => { const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const rows = [];
+    const L = (...c) => rows.push(c.map(esc).join(","));
+    const yn = (b) => (b ? "Yes" : "No");
+    const subs = data.subscriptions || [];
+
+    L("Life OS — Finance Export"); L("Generated", new Date().toLocaleString()); L("Household split", Math.round(split * 100) + "%"); L("");
+
+    L("INCOME"); L("Name", "Monthly Amount");
+    data.income.forEach((i) => L(i.name, n2(i.amount)));
+    L("Subtotal", n2(M.incomeTotal)); L("");
+
+    L("MONTHLY EXPENSES"); L("Name", "Category", "Paid With", "Split", "Due Day", "Company-Paid", "Amount", "Your Share");
+    data.expenses.forEach((e) => L(e.name, e.cat || "", e.acct || "", yn(e.split), e.dueDay || "", yn(e.companyPaid), n2(e.amount), n2(e.companyPaid ? 0 : e.amount * (e.split ? split : 1))));
+    subs.filter((s) => s.period === "monthly").forEach((s) => L("Subscription: " + (s.name || ""), "Subscriptions", s.acct || "", "No", s.day || "", yn(s.companyPaid), n2(s.amount), n2(s.companyPaid ? 0 : s.amount)));
+    L("Monthly expenses total (your share)", "", "", "", "", "", "", n2(M.monthlyOut)); L("");
+
+    L("ANNUAL EXPENSES"); L("Name", "Frequency", "Date(s)", "Paid With", "Split", "Company-Paid", "Annual Amount", "Monthly (amortized)");
+    data.annual.forEach((a) => L(a.name, a.freq || "", a.dates || "", a.acct || "", yn(a.split), yn(a.companyPaid), n2(a.amount), n2((a.companyPaid ? 0 : (a.split ? a.amount * split : a.amount)) / 12)));
+    subs.filter((s) => s.period === "annual").forEach((s) => L("Subscription: " + (s.name || ""), "", s.date || "", s.acct || "", "No", yn(s.companyPaid), n2(s.amount), n2((s.companyPaid ? 0 : s.amount) / 12)));
+    L("Annual total", "", "", "", "", "", n2(M.annualTotal), n2(M.annualMonthly)); L("");
+
+    L("SUBSCRIPTIONS"); L("Name", "Period", "Amount", "Day / Renewal", "Source", "Company-Paid");
+    subs.forEach((s) => L(s.name, s.period, n2(s.amount), s.period === "monthly" ? (s.day || "") : (s.date || ""), s.acct || "", yn(s.companyPaid)));
+    L(""); 
+
+    L("ASSETS"); L("Name", "Value");
+    data.assets.forEach((a) => L(a.name, n2(a.amount)));
+    L("Subtotal", n2(M.assetsTotal)); L("");
+
+    L("LIABILITIES"); L("Name", "Company-Paid", "Balance");
+    data.liabilities.forEach((l) => L(l.name, yn(l.companyPaid), n2(l.amount)));
+    L("Subtotal (excl. company-paid)", "", n2(M.liabTotal - (S.includeCardDebt ? M.cardDebt : 0))); L("");
+
+    L("ACCOUNTS / CASH"); L("Name", "Balance");
+    data.accounts.forEach((a) => L(a.name, n2(a.amount)));
+    L("Total cash", n2(M.cash)); L("");
+
+    L("CREDIT CARDS"); L("Name", "Balance", "Limit", "Payment", "Due");
+    data.cards.forEach((c) => L(c.name, n2(c.balance), n2(c.limit), n2(c.payment), c.due || ""));
+    L("Total card debt", n2(M.cardDebt)); L("");
+
+    L("SUMMARY"); L("Metric", "Value");
+    L("Monthly income", n2(M.incomeTotal));
+    L("Monthly expenses (your share)", n2(M.effOut));
+    L("Net monthly", n2(M.net));
+    L("Total cash", n2(M.cash));
+    L("Assets", n2(M.assetsTotal));
+    L("Liabilities", n2(M.liabTotal));
+    L("Net worth", n2(M.netWorth));
+    L("Cash runway (months)", isFinite(M.runwayMonths) ? n2(M.runwayMonths) : "∞");
+
+    const csv = "\ufeff" + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "finance-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   if (!loaded) return <div style={{ background: DARK.bg, color: DARK.mut, minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "sans-serif" }}>Loading…</div>;
 
@@ -242,33 +300,10 @@ export default function FinanceDashboard({ onEdit }) {
           @media (max-width: 760px){ .dgrid { grid-template-columns: 1fr; } .c4,.c6,.c12 { grid-column: span 1; } .topgrid { grid-template-columns: 1fr; } .hero-grid { grid-template-columns: 1fr !important; } }
         `}</style>
 
-        <div style={{ maxWidth: 1560, margin: "0 auto", padding: "22px 22px 40px" }}>
+        <div style={{ maxWidth: 1560, margin: "0 auto", padding: "8px 22px 26px" }}>
           {/* header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-              <span style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 500, letterSpacing: "-.01em" }}>Personal Finance</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
-              {onEdit && (
-                <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
-                  style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 9, padding: "6px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                  <Table2 size={13} /> Edit data
-                </button>
-              )}
-              <button onClick={() => setImportOpen(true)} title="Import a CSV from your bank, card, Robinhood, or Venmo"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                <Upload size={13} /> Import CSV
-              </button>
-              <button onClick={() => setS({ theme: S.theme === "light" ? "dark" : "light" })} title="Toggle theme"
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                {S.theme === "light" ? <Moon size={13} /> : <Sun size={13} />}{S.theme === "light" ? "Dark" : "Light"}
-              </button>
-              <button onClick={() => { if (confirm("Reset everything back to your original figures?")) setData(SEED); }}
-                style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, color: C.mut, borderRadius: 9, padding: "6px 11px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                <RotateCcw size={12} /> Reset
-              </button>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: saved ? C.pos : C.mut2, transition: "color .3s" }}>{saved ? "✓ Saved" : "Auto-saving"}</span>
           </div>
 
           {/* ============================ CASH FLOW ============================ */}
@@ -349,7 +384,7 @@ export default function FinanceDashboard({ onEdit }) {
                 <List rows={data.income} onUpd={(id, p) => updItem("income", id, p)} onDel={(id) => delItem("income", id)} onAdd={() => addItem("income", { name: "New income", amount: 0 })} addLabel="Add income" />
               </Panel></div>
               <div className="c6"><Panel title="Annual Expenses" icon={<CalendarClock size={16} />} collapsible defaultOpen={false} sub={`${money0(M.annualTotal)}/yr · ${money0(M.annualMonthly)}/mo`} right={<Total v={M.annualTotal} color={C.mut} />}>
-                <AnnualList rows={data.annual} onUpd={(id, p) => updItem("annual", id, p)} onDel={(id) => delItem("annual", id)} onAdd={() => addItem("annual", { name: "New annual cost", amount: 0, note: "" })} />
+                <AnnualList rows={data.annual} subsTotal={M.annualSubsTotal} onOpenSubs={onOpenSubs} />
               </Panel></div>
               <div className="c12"><Panel title="Monthly Expenses" icon={<ArrowDownRight size={16} />} collapsible defaultOpen={false} right={<Total v={M.monthlyOut} color={C.neg} />}
                 sub={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Split size={11} color={C.accent} /> household split {Math.round(S.householdSplit * 100)}% · tag what each is paid with</span>}>
@@ -358,10 +393,8 @@ export default function FinanceDashboard({ onEdit }) {
                   <input type="range" min="0" max="100" value={Math.round(S.householdSplit * 100)} onChange={(e) => setS({ householdSplit: e.target.value / 100 })} style={{ accentColor: C.accent, flex: 1 }} />
                   <span style={{ color: C.accent, fontWeight: 600 }}>{Math.round(S.householdSplit * 100)}%</span>
                 </div>
-                <ExpenseList rows={data.expenses} split={S.householdSplit} payOptions={payOptions}
-                  onUpd={(id, p) => updItem("expenses", id, p)} onDel={(id) => delItem("expenses", id)}
-                  onAdd={() => addItem("expenses", { name: "New expense", amount: 0, cat: "Other", split: false, acct: "" })} />
-                <CardPayRows cardRows={M.cardRows} onUpd={(id, p) => updItem("cards", id, p)} />
+                <ExpenseList rows={data.expenses} split={S.householdSplit} subsTotal={M.monthlySubsTotal} onOpenSubs={onOpenSubs} />
+                <CardPayRows cardRows={M.cardRows} />
               </Panel></div>
             </div>
 
@@ -440,8 +473,20 @@ export default function FinanceDashboard({ onEdit }) {
               </Panel></div>
             </div>
 
-          <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 22 }}>
-            Every figure is editable and saves automatically · totals, net worth & runway recalculate instantly
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
+            {onEdit && (
+              <button onClick={onEdit} title="Open the spreadsheet-style data entry page"
+                style={{ display: "flex", alignItems: "center", gap: 7, background: C.accent, border: `1px solid ${C.accent}`, color: "#fff", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                <Table2 size={15} /> Edit data
+              </button>
+            )}
+            <button onClick={exportCSV} title="Export all finance data to a CSV file"
+              style={{ display: "flex", alignItems: "center", gap: 7, background: "transparent", border: `1px solid ${C.lineHi}`, color: C.mut, borderRadius: 10, padding: "10px 20px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              <Download size={15} /> Export CSV
+            </button>
+          </div>
+          <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 12 }}>
+            View only · tap "Edit data" to make changes — totals, net worth &amp; runway recalculate instantly
           </div>
           {importOpen && (
             <ImportModal
@@ -522,88 +567,80 @@ function RowShell({ children, onDel }) {
   return (
     <div className="row" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, transition: "background .15s" }}>
       {children}
-      <button onClick={onDel} style={{ background: "transparent", border: "none", cursor: "pointer", color: C.mut2, display: "flex", padding: 2, flexShrink: 0 }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = C.neg)} onMouseLeave={(e) => (e.currentTarget.style.color = C.mut2)}><X size={13} /></button>
     </div>
   );
 }
-function AddBtn({ onClick, label }) {
-  const C = useC();
-  return (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, background: "transparent", border: `1px dashed ${C.line}`, color: C.mut, borderRadius: 7, padding: "6px 10px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", width: "100%", justifyContent: "center" }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.color = C.mut; }}>
-      <Plus size={13} /> {label}
-    </button>
-  );
-}
+function AddBtn() { return null; }
 function List({ rows, onUpd, onDel, onAdd, addLabel, big }) {
   const C = useC();
   return (
     <div>
-      {rows.map((r) => (
-        <RowShell key={r.id} onDel={() => onDel(r.id)}>
-          <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={r.name} onChange={(v) => onUpd(r.id, { name: v })} /></div>
+      {rows.map((r) => { const cp = !!r.companyPaid; return (
+        <RowShell key={r.id}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
           <div style={{ width: big ? 104 : 92, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
             <span style={{ color: C.mut2, fontSize: 12.5, marginRight: 1 }}>$</span>
-            <NumInput value={r.amount} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: big ? 88 : 76 }} />
+            <NumInput value={r.amount} style={{ display: "inline-block", width: big ? 88 : 76, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
           </div>
         </RowShell>
-      ))}
+      ); })}
       <AddBtn onClick={onAdd} label={addLabel} />
     </div>
   );
 }
-function ExpenseList({ rows, split, payOptions, onUpd, onDel, onAdd }) {
+function ExpenseList({ rows, split, subsTotal, onOpenSubs }) {
   const C = useC();
   return (
     <div>
       {rows.map((r) => {
-        const eff = r.amount * (r.split ? split : 1);
+        const cp = !!r.companyPaid;
+        const eff = cp ? 0 : r.amount * (r.split ? split : 1);
         return (
-          <RowShell key={r.id} onDel={() => onDel(r.id)}>
-            <button onClick={() => onUpd(r.id, { split: !r.split })} title={r.split ? "Split — click for full" : "Full — click to split"}
-              style={{ background: "transparent", border: "none", cursor: "pointer", color: r.split ? C.accent : C.mut2, display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></button>
-            <div style={{ flex: 1, minWidth: 70 }}><TxtInput value={r.name} onChange={(v) => onUpd(r.id, { name: v })} /></div>
-            <select value={r.cat} onChange={(e) => onUpd(r.id, { cat: e.target.value })}
-              style={{ background: C.bg2, color: C.mut, border: `1px solid ${C.line}`, borderRadius: 6, fontSize: 10.5, padding: "3px 4px", fontFamily: "inherit", cursor: "pointer", flexShrink: 0, maxWidth: 96 }}>
-              {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={r.acct || ""} onChange={(e) => onUpd(r.id, { acct: e.target.value })} title="Paid with"
-              style={{ background: C.bg2, color: r.acct ? C.text : C.mut2, border: `1px solid ${C.line}`, borderRadius: 6, fontSize: 10.5, padding: "3px 4px", fontFamily: "inherit", cursor: "pointer", flexShrink: 0, maxWidth: 120 }}>
-              <option value="">— paid with —</option>
-              {payOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-            </select>
+          <RowShell key={r.id}>
+            <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
+            <div style={{ flex: 1, minWidth: 70, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+            <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>
+            <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>
             <div style={{ width: 86, textAlign: "right", flexShrink: 0 }}>
               <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-              <NumInput value={r.amount} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 66 }} />
-              {r.split && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
+              <NumInput value={r.amount} style={{ display: "inline-block", width: 66, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
+              {r.split && !cp && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
             </div>
           </RowShell>
         );
       })}
-      <AddBtn onClick={onAdd} label="Add expense" />
+      <SubsRow total={subsTotal} onClick={() => onOpenSubs("monthly")} amtWidth={86} />
     </div>
   );
 }
-function AnnualList({ rows, onUpd, onDel, onAdd }) {
+function SubsRow({ total, onClick, amtWidth }) {
+  const C = useC();
+  return (
+    <div className="row" onClick={onClick} title="Manage subscriptions" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, cursor: "pointer" }}>
+      <Repeat size={13} color={C.accent} style={{ flexShrink: 0 }} />
+      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: C.text }}>Subscriptions<span style={{ color: C.accent, fontWeight: 500, fontSize: 11.5, marginLeft: 8 }}>manage →</span></span>
+      <div style={{ width: amtWidth, textAlign: "right", flexShrink: 0, fontSize: 13.5, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: C.text }}>{money0(total || 0)}</div>
+    </div>
+  );
+}
+function AnnualList({ rows, subsTotal, onOpenSubs }) {
   const C = useC();
   return (
     <div>
-      {rows.map((r) => (
-        <RowShell key={r.id} onDel={() => onDel(r.id)}>
+      {rows.map((r) => { const cp = !!r.companyPaid; return (
+        <RowShell key={r.id}>
+          <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <TxtInput value={r.name} onChange={(v) => onUpd(r.id, { name: v })} />
-            <input value={r.note || ""} placeholder="timing / note" onChange={(e) => onUpd(r.id, { note: e.target.value })}
-              style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: C.mut2, fontSize: 10.5, fontStyle: "italic", fontFamily: "inherit", marginTop: -1 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+            <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates, r.acct].filter(Boolean).join(" · ") || (r.note || "")}</div>
           </div>
           <div style={{ width: 96, textAlign: "right", flexShrink: 0 }}>
             <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-            <NumInput value={r.amount} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 78 }} />
+            <NumInput value={r.amount} style={{ display: "inline-block", width: 78, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
           </div>
         </RowShell>
-      ))}
-      <AddBtn onClick={onAdd} label="Add annual expense" />
+      ); })}
+      <SubsRow total={subsTotal} onClick={() => onOpenSubs("annual")} amtWidth={96} />
     </div>
   );
 }
@@ -658,8 +695,7 @@ function CardList({ cards, spend, onUpd, onDel, onAdd }) {
           <div key={c.id} style={{ padding: "9px 9px", borderRadius: 9, border: `1px solid ${C.line}`, background: C.bg2, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <CreditCard size={13} color={C.accent} style={{ flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} onChange={(v) => onUpd(c.id, { name: v })} style={{ fontWeight: 600 }} /></div>
-              <button onClick={() => onDel(c.id)} style={{ background: "transparent", border: "none", cursor: "pointer", color: C.mut2, display: "flex", padding: 2 }}><X size={12} /></button>
+              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} style={{ fontWeight: 600 }} /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
               <Field label="Balance"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.balance} onChange={(v) => onUpd(c.id, { balance: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>

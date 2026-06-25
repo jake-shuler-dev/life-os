@@ -3,9 +3,9 @@ import { supabase } from "../lib/supabase.js";
 import { Send, Sparkles, ExternalLink } from "lucide-react";
 
 const T = {
-  bg: "#0E0E10", bg2: "#141417", panel: "#17171B", panelHi: "#1C1C21",
-  line: "#27272E", line2: "#34343D", bright: "#F1EFEA", dim: "#8C8C95", faint: "#56565E",
-  ember: "#FF5A1F", emberDim: "rgba(255,90,31,.14)", good: "#54D6A0", neg: "#F2585F",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", panelHi: "var(--panelHi)",
+  line: "var(--line)", line2: "var(--line2)", bright: "var(--text)", dim: "var(--dim)", faint: "var(--faint)",
+  ember: "var(--ember)", emberDim: "var(--emberDim)", good: "var(--good)", neg: "var(--neg)",
 };
 const PROVIDERS = [
   { id: "claude", label: "Claude", web: "https://claude.ai" },

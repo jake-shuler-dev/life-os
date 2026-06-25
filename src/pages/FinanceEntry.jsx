@@ -5,10 +5,11 @@ import { ArrowLeft, Trash2, Plus, Check } from "lucide-react";
 const STORE_KEY = "finance_data_v3";
 const uid = () => Math.random().toString(36).slice(2, 9);
 const CATS = ["Household", "Housing", "Food", "Health", "Subscriptions", "Obligations", "Other"];
+const FREQS = ["Annual", "Semiannual", "Quarterly", "Custom"];
 
 const C = {
-  bg: "#141417", bg2: "#1A1A1F", panel: "#212127", line: "#2F2F38", line2: "#3A3A45",
-  text: "#ECECEF", mut: "#8A8A95", mut2: "#6B6B75", accent: "#FF6B2C", pos: "#54D6A0", neg: "#F2585F", amber: "#FFB020",
+  bg: "var(--bg)", bg2: "var(--bg2)", panel: "var(--panel)", line: "var(--line)", line2: "var(--line2)",
+  text: "var(--text)", mut: "var(--dim)", mut2: "var(--faint)", accent: "var(--ember)", pos: "var(--pos)", neg: "var(--neg)", amber: "#FFB020",
 };
 const money = (n) => "$" + Math.round(+n || 0).toLocaleString("en-US");
 const fmtNum = (n) => { const v = +n || 0; return v === 0 ? "" : v.toLocaleString("en-US", { maximumFractionDigits: 2 }); };
@@ -30,8 +31,19 @@ function NumCell({ value, onChange }) {
   );
 }
 
-function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, addLabel }) {
-  const total = rows.reduce((s, r) => s + (parseFloat(r[totalKey]) || 0), 0);
+function SubsBar({ label, total, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 16px", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.accent)} onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.line)}>
+      <span style={{ fontSize: 15 }}>🔁</span>
+      <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, color: C.text }}>{label}<span style={{ color: C.mut, fontWeight: 400, marginLeft: 8, fontSize: 12 }}>manage →</span></span>
+      <span style={{ fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 700, fontSize: 15, color: C.text, fontVariantNumeric: "tabular-nums" }}>{money(total)}</span>
+    </button>
+  );
+}
+
+function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, addLabel, pinned }) {
+  const total = rows.reduce((s, r) => s + (r.companyPaid ? 0 : (parseFloat(r[totalKey]) || 0)), 0) + (pinned ? (+pinned.total || 0) : 0);
   const span = columns.length - 1;
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, overflow: "hidden" }}>
@@ -64,6 +76,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
                       <input type="checkbox" checked={!!row[col.key]} onChange={(e) => onUpd(row.id, { [col.key]: e.target.checked })} style={{ accentColor: C.accent, width: 15, height: 15, cursor: "pointer" }} />
                     </div>
                   )}
+                  {col.type === "day" && <input className="fe-in" value={row[col.key] ?? ""} placeholder="—" inputMode="numeric" onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2); onUpd(row.id, { [col.key]: v === "" ? "" : Math.min(31, +v) }); }} style={{ textAlign: "center" }} />}
                 </td>
               ))}
               <td className="fe-td" style={{ textAlign: "center" }}>
@@ -71,6 +84,16 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
               </td>
             </tr>
           ))}
+          {pinned && (
+            <tr className="fe-tr" onClick={pinned.onClick} style={{ cursor: "pointer", background: "var(--emberDim)" }} title="Manage subscriptions">
+              <td className="fe-td" colSpan={span} style={{ fontWeight: 600, color: C.text }}>
+                <span style={{ marginRight: 7 }}>🔁</span>{pinned.label}
+                <span style={{ color: C.accent, fontWeight: 500, fontSize: 11.5, marginLeft: 8 }}>manage →</span>
+              </td>
+              <td className="fe-td" style={{ textAlign: "right", fontFamily: "'Hanken Grotesk',sans-serif", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{money(pinned.total)}</td>
+              <td className="fe-td"></td>
+            </tr>
+          )}
         </tbody>
         <tfoot><tr>
           <td className="fe-foot" colSpan={span} style={{ fontSize: 11, color: C.mut, textTransform: "uppercase", letterSpacing: ".08em" }}>Total</td>
@@ -83,7 +106,7 @@ function EditTable({ icon, title, columns, rows, totalKey, onUpd, onDel, onAdd, 
   );
 }
 
-export default function FinanceEntry({ onBack }) {
+export default function FinanceEntry({ onBack, onOpenSubs }) {
   const [full, setFull] = useState(null);
   const [draft, setDraft] = useState(null);
   const [baseline, setBaseline] = useState("");
@@ -107,8 +130,9 @@ export default function FinanceEntry({ onBack }) {
   const upd = (key) => (id, patch) => setRows(key, draft[key].map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const del = (key) => (id) => setRows(key, draft[key].filter((r) => r.id !== id));
   const add = (key, blank) => () => setRows(key, [...draft[key], { id: uid(), ...blank }]);
+  const subTotal = (period) => ((full && full.subscriptions) || []).reduce((s, x) => s + (x.period === period && !x.companyPaid ? (+x.amount || 0) : 0), 0);
 
-  const PAY = [...draft.accounts.map((a) => a.name), ...draft.cards.map((c) => c.name)].filter(Boolean);
+  const PAY = [...new Set(["Cash", ...draft.accounts.map((a) => a.name), ...draft.cards.map((c) => c.name)])].filter(Boolean);
 
   async function save() {
     const merged = { ...full, ...draft };
@@ -170,12 +194,16 @@ export default function FinanceEntry({ onBack }) {
               { key: "cat", label: "Category", type: "select", options: CATS },
               { key: "acct", label: "Paid With", type: "select", options: PAY },
               { key: "split", label: "Split", type: "check", align: "center" },
+              { key: "dueDay", label: "Due day", type: "day", align: "center" },
+              { key: "companyPaid", label: "Company", type: "check", align: "center" },
               { key: "amount", label: "Amount", type: "num", align: "right" },
             ]}
-            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, amount: 0 })} />
+            onUpd={upd("expenses")} onDel={del("expenses")} onAdd={add("expenses", { name: "", cat: "Other", acct: "", split: false, dueDay: "", companyPaid: false, amount: 0 })}
+            pinned={{ label: "Subscriptions", total: subTotal("monthly"), onClick: () => onOpenSubs && onOpenSubs("monthly") }} />
           <EditTable icon="📅" title="Annual Expenses" totalKey="amount" rows={draft.annual} addLabel="Add annual expense"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "note", label: "Timing", type: "note" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
-            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", note: "", amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "freq", label: "Frequency", type: "select", options: FREQS }, { key: "dates", label: "Date(s) — e.g. 2/1, 8/1", type: "text" }, { key: "acct", label: "Paid With", type: "select", options: PAY }, { key: "split", label: "Split", type: "check", align: "center" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Annual", type: "num", align: "right" }]}
+            onUpd={upd("annual")} onDel={del("annual")} onAdd={add("annual", { name: "", freq: "Annual", dates: "", acct: "", split: false, companyPaid: false, amount: 0 })}
+            pinned={{ label: "Subscriptions", total: subTotal("annual"), onClick: () => onOpenSubs && onOpenSubs("annual") }} />
         </div>
 
         <div className="fe-group"><span className="fe-glbl">Net Worth</span><span style={{ flex: 1, height: 1, background: C.line }} /></div>
@@ -184,8 +212,8 @@ export default function FinanceEntry({ onBack }) {
             columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Value", type: "num", align: "right" }]}
             onUpd={upd("assets")} onDel={del("assets")} onAdd={add("assets", { name: "", amount: 0 })} />
           <EditTable icon="📉" title="Liabilities" totalKey="amount" rows={draft.liabilities} addLabel="Add liability"
-            columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
-            onUpd={upd("liabilities")} onDel={del("liabilities")} onAdd={add("liabilities", { name: "", amount: 0 })} />
+            columns={[{ key: "name", label: "Item", type: "text" }, { key: "companyPaid", label: "Company", type: "check", align: "center" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
+            onUpd={upd("liabilities")} onDel={del("liabilities")} onAdd={add("liabilities", { name: "", companyPaid: false, amount: 0 })} />
           <EditTable icon="💰" title="Cash on Hand" totalKey="amount" rows={draft.accounts} addLabel="Add account"
             columns={[{ key: "name", label: "Item", type: "text" }, { key: "amount", label: "Balance", type: "num", align: "right" }]}
             onUpd={upd("accounts")} onDel={del("accounts")} onAdd={add("accounts", { name: "", amount: 0 })} />

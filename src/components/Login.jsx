@@ -3,8 +3,8 @@ import { supabase } from "../lib/supabase.js";
 import { Lock } from "lucide-react";
 
 const T = {
-  bg: "#0E0E10", panel: "#17171B", line: "#27272E", line2: "#34343D",
-  bright: "#F1EFEA", dim: "#8C8C95", faint: "#56565E", ember: "#FF5A1F", emberDim: "rgba(255,90,31,.14)", good: "#54D6A0",
+  bg: "var(--bg)", panel: "var(--panel)", line: "var(--line)", line2: "var(--line2)",
+  bright: "var(--text)", dim: "var(--dim)", faint: "var(--faint)", ember: "var(--ember)", emberDim: "var(--emberDim)", good: "var(--good)",
 };
 
 export default function Login() {
