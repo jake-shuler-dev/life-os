@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, X, Plus, Trash2, Pencil, CalendarRange, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Trash2, Pencil, CalendarRange, Repeat, Download, Printer } from "lucide-react";
 
 const STORE = "ppp_v1";
 const DAY = 86400000;
@@ -59,17 +59,23 @@ const PATTERNS = {
   "3-4-4-3": [1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
   eo_weekend: [1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
 };
-const PATTERN_OPTS = [["none", "None"], ["alt_week", "Week on / off"], ["2-2-3", "2-2-3"], ["2-2-5-5", "2-2-5-5"], ["3-4-4-3", "3-4-4-3"], ["eo_weekend", "Every other wknd"]];
+const PATTERN_OPTS = [["alt_week", "Week on / off"], ["2-2-3", "2-2-3"], ["2-2-5-5", "2-2-5-5"], ["3-4-4-3", "3-4-4-3"], ["eo_weekend", "Every other wknd"]];
+const PATTERN_LABEL = Object.fromEntries(PATTERN_OPTS);
 
 export default function PPP() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const [data, setData] = useState({ holidays: {}, events: [], base: { type: "none", anchor: key(mondayOfWeek(today)), meFirst: true } });
+  const [data, setData] = useState({ holidays: {}, events: [], schedules: [] });
   const [loaded, setLoaded] = useState(false);
   const [monthA, setMonthA] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [editor, setEditor] = useState(null);
 
   useEffect(() => { (async () => {
-    try { const r = await window.storage.get(STORE, false); if (r && r.value) { const o = JSON.parse(r.value); setData({ holidays: o.holidays || {}, events: o.events || [], base: o.base || { type: "none", anchor: key(mondayOfWeek(today)), meFirst: true } }); } } catch (e) {}
+    try { const r = await window.storage.get(STORE, false); if (r && r.value) {
+      const o = JSON.parse(r.value);
+      let schedules = o.schedules;
+      if (!schedules) { schedules = (o.base && o.base.type && o.base.type !== "none") ? [{ id: uid(), type: o.base.type, anchor: o.base.anchor || key(mondayOfWeek(today)), meFirst: o.base.meFirst !== false, start: o.base.anchor || "2000-01-01", end: "" }] : []; }
+      setData({ holidays: o.holidays || {}, events: o.events || [], schedules });
+    } } catch (e) {}
     setLoaded(true);
   })(); }, []);
   useEffect(() => { if (!loaded) return; const t = setTimeout(() => { window.storage.set(STORE, JSON.stringify(data), false).catch(() => {}); }, 400); return () => clearTimeout(t); }, [data, loaded]);
@@ -77,13 +83,16 @@ export default function PPP() {
   const y = monthA.getFullYear(), m = monthA.getMonth();
   const holidays = data.holidays || {};
   const events = data.events || [];
-  const base = data.base || { type: "none" };
+  const schedules = data.schedules || [];
 
   const baseOwner = (d) => {
-    if (!base || base.type === "none" || !base.anchor) return null;
-    const pat = PATTERNS[base.type]; if (!pat) return null; const L = pat.length;
-    const diff = Math.round((parseKey(key(d)) - parseKey(base.anchor)) / DAY);
-    const idx = ((diff % L) + L) % L; let mine = !!pat[idx]; if (!base.meFirst) mine = !mine;
+    const k = key(d);
+    const segs = schedules.filter((s) => s.type && s.type !== "none" && s.start && k >= s.start && (!s.end || k <= s.end));
+    if (!segs.length) return null;
+    const seg = segs.reduce((a, b) => (b.start > a.start ? b : a));
+    const pat = PATTERNS[seg.type]; if (!pat) return null; const L = pat.length;
+    const diff = Math.round((parseKey(k) - parseKey(seg.anchor || seg.start)) / DAY);
+    const idx = ((diff % L) + L) % L; let mine = !!pat[idx]; if (!seg.meFirst) mine = !mine;
     return mine ? "mine" : "theirs";
   };
   const eventInfoOn = (ev, k) => {
@@ -97,15 +106,32 @@ export default function PPP() {
     const e = ev.end || ev.start; if (k >= ev.start && k <= e) return { owner: ev.mine ? "mine" : "theirs", label: ev.title || "Event" };
     return null;
   };
+  const dayOwner = (d) => {
+    const k = key(d); const yr = d.getFullYear(); let owner = baseOwner(d);
+    HOLIDAYS.forEach((h) => { const hd = holidayDate(h.rule, yr); if (hd && key(hd) === k) { const a = holidays[h.id] || "off"; if (a !== "off") owner = resolveMine(a, yr) ? "mine" : "theirs"; } });
+    events.forEach((ev) => { const info = eventInfoOn(ev, k); if (info) owner = info.owner; });
+    return owner;
+  };
+  const mineOn = (d) => dayOwner(d) === "mine";
   const dayInfo = (d) => {
     const k = key(d); const yr = d.getFullYear(); let owner = baseOwner(d); const labels = [];
-    HOLIDAYS.forEach((h) => { const hd = holidayDate(h.rule, yr); if (hd && key(hd) === k) { const a = holidays[h.id] || "off"; if (a !== "off") { const ho = resolveMine(a, yr) ? "mine" : "theirs"; owner = ho; labels.push({ text: h.name, owner: ho }); } else { labels.push({ text: h.name, owner: "none" }); } } });
+    HOLIDAYS.forEach((h) => { const hd = holidayDate(h.rule, yr); if (hd && key(hd) === k) { const a = holidays[h.id] || "off"; if (a !== "off") { const ho = resolveMine(a, yr) ? "mine" : "theirs"; owner = ho; labels.push({ text: h.name, owner: ho }); } else labels.push({ text: h.name, owner: "none" }); } });
     events.forEach((ev) => { const info = eventInfoOn(ev, k); if (info) { owner = info.owner; labels.push({ text: info.label, owner: info.owner }); } });
-    return { mine: owner === "mine", labels };
+    return { owner, mine: owner === "mine", labels };
+  };
+  const cellBg = (d, mine, isT) => {
+    if (!mine) return isT ? T.panelHi : T.panel;
+    const C = hexA(EMBER, .18); const mp = mineOn(addDays(d, -1)), mn = mineOn(addDays(d, 1));
+    if (mp && mn) return C;
+    if (!mp && mn) return `linear-gradient(to right, transparent 38%, ${C} 78%)`;
+    if (mp && !mn) return `linear-gradient(to right, ${C} 22%, transparent 62%)`;
+    return `linear-gradient(to right, transparent 12%, ${C} 32%, ${C} 68%, transparent 88%)`;
   };
 
   const setHoliday = (id, val) => setData((dd) => ({ ...dd, holidays: { ...(dd.holidays || {}), [id]: val } }));
-  const setBase = (patch) => setData((dd) => { const b = { ...(dd.base || { type: "none", meFirst: true }), ...patch }; if (b.type !== "none" && !b.anchor) b.anchor = key(mondayOfWeek(today)); return { ...dd, base: b }; });
+  const addCycle = () => setData((dd) => ({ ...dd, schedules: [...(dd.schedules || []), { id: uid(), type: "alt_week", anchor: key(mondayOfWeek(today)), meFirst: true, start: key(mondayOfWeek(today)), end: "" }] }));
+  const updCycle = (id, patch) => setData((dd) => ({ ...dd, schedules: (dd.schedules || []).map((s) => s.id === id ? { ...s, ...patch } : s) }));
+  const delCycle = (id) => setData((dd) => ({ ...dd, schedules: (dd.schedules || []).filter((s) => s.id !== id) }));
   const saveEvent = (ev) => setData((dd) => { const list = dd.events || []; if (ev.id && list.some((x) => x.id === ev.id)) return { ...dd, events: list.map((x) => x.id === ev.id ? ev : x) }; return { ...dd, events: [...list, { ...ev, id: ev.id || uid() }] }; });
   const delEvent = (id) => setData((dd) => ({ ...dd, events: (dd.events || []).filter((x) => x.id !== id) }));
   const openNew = (k) => setEditor({ id: null, kind: "single", title: "", start: k || key(today), end: "", mine: true, split: "", firstHalf: "even" });
@@ -115,8 +141,37 @@ export default function PPP() {
   const cells = Array.from({ length: rows * 7 }, (_, i) => addDays(start, i));
   const yearEvents = useMemo(() => events.filter((ev) => { const sy = ev.start ? +ev.start.slice(0, 4) : null; const ey = ev.end ? +ev.end.slice(0, 4) : sy; return sy === y || ey === y; }).sort((a, b) => (a.start || "").localeCompare(b.start || "")), [events, y]);
 
+  function exportCSV() {
+    const r = [["Date", "Weekday", "Has Kids", "Holiday / Event"]];
+    let d = new Date(y, 0, 1);
+    while (d.getFullYear() === y) { const info = dayInfo(d); r.push([key(d), d.toLocaleDateString("en-US", { weekday: "long" }), info.owner === "mine" ? "Me" : info.owner === "theirs" ? "Co-parent" : "", info.labels.map((l) => l.text).join("; ")]); d = addDays(d, 1); }
+    const csv = r.map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = `parenting-plan-${y}.csv`; a.click(); URL.revokeObjectURL(url);
+  }
+  function printMonth() {
+    const w = window.open("", "_blank"); if (!w) return;
+    const head = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => `<th>${x}</th>`).join("");
+    const cellHtml = cells.map((d, i) => {
+      const out = d.getMonth() !== m; const info = dayInfo(d);
+      const labs = info.labels.map((l) => `<div style="font-size:9px;color:${l.owner === "mine" ? "#C0420F" : "#666"}">${esc(l.text)}</div>`).join("");
+      const bg = info.mine ? "background:#FFE2D5;" : ""; const op = out ? "opacity:.35;" : "";
+      return `${i % 7 === 0 ? "<tr>" : ""}<td style="${bg}${op}vertical-align:top;height:74px;border:1px solid #ccc;padding:3px"><div style="font-weight:600;font-size:11px">${d.getDate()}</div>${labs}</td>${i % 7 === 6 ? "</tr>" : ""}`;
+    }).join("");
+    const evRows = yearEvents.map((ev) => `<tr><td style="padding:3px 8px;border-bottom:1px solid #eee">${esc(fmtRange(ev.start, ev.end))}</td><td style="padding:3px 8px;border-bottom:1px solid #eee">${esc(ev.title || "")}</td><td style="padding:3px 8px;border-bottom:1px solid #eee">${ev.kind === "split" ? "Split" : (ev.mine ? "Me" : "Co-parent")}</td></tr>`).join("");
+    w.document.write(`<html><head><title>Parenting Plan — ${monthA.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</title>
+      <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px}h1{font-size:20px}table{border-collapse:collapse;width:100%}th{font-size:10px;text-transform:uppercase;color:#888;padding:4px}@media print{.np{display:none}}</style></head>
+      <body><h1>${monthA.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h1>
+      <p style="font-size:11px;color:#666">Shaded = my days. Holiday/event names shown per day.</p>
+      <table><thead><tr>${head}</tr></thead><tbody>${cellHtml}</tbody></table>
+      <h2 style="font-size:15px;margin-top:24px">Holidays &amp; Events · ${y}</h2>
+      <table>${evRows || '<tr><td style="padding:6px;color:#888">None</td></tr>'}</table>
+      <button class="np" onclick="window.print()" style="margin-top:18px;padding:8px 16px">Print</button>
+      </body></html>`);
+    w.document.close(); w.focus();
+  }
+
   if (!loaded) return <div style={{ color: T.dim, padding: 40 }}>Loading…</div>;
-  const meFirstLabel = base.type === "eo_weekend" ? "I'm the primary parent" : "Cycle starts on my time";
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: "auto", paddingTop: 14, fontFamily: "'Hanken Grotesk',system-ui,sans-serif", color: T.text }}>
@@ -125,8 +180,10 @@ export default function PPP() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
             <div style={{ fontFamily: "'Fraunces',serif", fontSize: 23, fontWeight: 500 }}>Parenting Plan</div>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.dim, marginTop: 4 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: hexA(EMBER, .55), border: "1px solid " + EMBER }} /> My days are shaded</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.dim, marginTop: 4 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: hexA(EMBER, .55), border: "1px solid " + EMBER }} /> My days shaded · switch days half-shaded</span>
           </div>
+          <button onClick={printMonth} title="Open a printable view" style={iconBtnWide}><Printer size={14} /> Print</button>
+          <button onClick={exportCSV} title="Export the year as CSV" style={iconBtnWide}><Download size={14} /> CSV</button>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <button onClick={() => setMonthA(new Date(y, m - 1, 1))} style={navBtn}><ChevronLeft size={16} /></button>
             <span style={{ fontFamily: "'Fraunces',serif", fontSize: 19, fontWeight: 500, minWidth: 150, textAlign: "center" }}>{monthA.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
@@ -143,7 +200,7 @@ export default function PPP() {
           {cells.map((d) => {
             const out = d.getMonth() !== m; const k = key(d); const isT = k === key(today); const info = dayInfo(d);
             return (
-              <div key={k} onClick={() => openNew(k)} style={{ minHeight: 74, display: "flex", flexDirection: "column", gap: 3, cursor: "pointer", borderRadius: 9, padding: "6px 7px", background: info.mine ? hexA(EMBER, .16) : (isT ? T.panelHi : T.panel), border: "1px solid " + (info.mine ? EMBER : (isT ? T.line2 : T.line)), opacity: out ? 0.4 : 1, overflow: "hidden" }}>
+              <div key={k} onClick={() => openNew(k)} style={{ minHeight: 74, display: "flex", flexDirection: "column", gap: 3, cursor: "pointer", borderRadius: 9, padding: "6px 7px", background: cellBg(d, info.mine, isT), border: "1px solid " + (info.mine ? hexA(EMBER, .55) : (isT ? T.line2 : T.line)), opacity: out ? 0.4 : 1, overflow: "hidden" }}>
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 600, color: info.mine ? EMBER : (isT ? T.ember : T.text) }}>{d.getDate()}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {info.labels.slice(0, 3).map((l, i) => (
@@ -156,28 +213,33 @@ export default function PPP() {
           })}
         </div>
 
-        {/* base residential schedule */}
-        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: T.dim, marginBottom: 4 }}>Base Residential Schedule</div>
-        <div style={{ fontSize: 11.5, color: T.faint, marginBottom: 10 }}>Your underlying rotation. Holidays and breaks below automatically override it.</div>
-        <div style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: 14, marginBottom: 24 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: base.type === "none" ? 0 : 14 }}>
-            {PATTERN_OPTS.map(([val, label]) => (
-              <button key={val} onClick={() => setBase({ type: val })} style={{ padding: "8px 13px", borderRadius: 8, border: "1px solid " + (base.type === val ? EMBER : T.line2), background: base.type === val ? hexA(EMBER, .14) : "transparent", color: base.type === val ? T.text : T.dim, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", cursor: "pointer" }}>{label}</button>
-            ))}
-          </div>
-          {base.type !== "none" && (
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div>
-                <L>Cycle start (anchor)</L>
-                <input className="ppp-in" type="date" value={base.anchor || ""} onChange={(e) => setBase({ anchor: e.target.value })} style={{ background: T.bg, border: "1px solid " + T.line2, color: T.text, borderRadius: 9, padding: "9px 11px", fontFamily: "inherit", fontSize: 13.5, outline: "none" }} />
-                <div style={{ fontSize: 10.5, color: T.faint, marginTop: 4, maxWidth: 230 }}>{base.type === "alt_week" ? "First day of one of your weeks." : "First day of the cycle — usually a Monday."}</div>
+        {/* schedule cycles */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: T.dim, flex: 1 }}>Residential Schedule Cycles</span>
+          <button onClick={addCycle} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid " + T.line2, color: T.dim, borderRadius: 9, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}><Plus size={14} /> Add cycle</button>
+        </div>
+        <div style={{ fontSize: 11.5, color: T.faint, marginBottom: 10 }}>Your base rotation. A cycle with a later start date overrides earlier ones in its range — use that to rebalance after a long stretch (e.g., the week after a holiday you kept). Holidays &amp; breaks override everything.</div>
+        {schedules.length === 0 && <div style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 13, padding: 16, fontSize: 13, color: T.faint, fontStyle: "italic", marginBottom: 24 }}>No cycle set — add one to fill the calendar with your rotation.</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+          {schedules.slice().sort((a, b) => (a.start || "").localeCompare(b.start || "")).map((s) => (
+            <div key={s.id} style={{ background: T.panel, border: "1px solid " + T.line, borderRadius: 12, padding: 13 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+                {PATTERN_OPTS.map(([val, label]) => (
+                  <button key={val} onClick={() => updCycle(s.id, { type: val })} style={{ padding: "7px 11px", borderRadius: 8, border: "1px solid " + (s.type === val ? EMBER : T.line2), background: s.type === val ? hexA(EMBER, .14) : "transparent", color: s.type === val ? T.text : T.dim, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", cursor: "pointer" }}>{label}</button>
+                ))}
+                <button onClick={() => delCycle(s.id)} style={{ ...iconBtn, marginLeft: "auto" }}><Trash2 size={13} /></button>
               </div>
-              <button onClick={() => setBase({ meFirst: !base.meFirst })} style={{ display: "inline-flex", alignItems: "center", gap: 9, background: base.meFirst ? hexA(EMBER, .14) : T.bg, border: "1px solid " + (base.meFirst ? EMBER : T.line2), borderRadius: 10, padding: "9px 13px", cursor: "pointer", fontFamily: "inherit" }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: base.meFirst ? T.text : T.dim }}>{meFirstLabel}</span>
-                <span style={{ width: 34, height: 18, borderRadius: 10, background: base.meFirst ? EMBER : T.line2, position: "relative", flexShrink: 0 }}><span style={{ position: "absolute", top: 2, left: base.meFirst ? 18 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left .15s" }} /></span>
-              </button>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <Field label="Active from"><input className="ppp-in" type="date" value={s.start || ""} onChange={(e) => updCycle(s.id, { start: e.target.value })} style={dateFld} /></Field>
+                <Field label="Active until (optional)"><input className="ppp-in" type="date" value={s.end || ""} onChange={(e) => updCycle(s.id, { end: e.target.value })} style={dateFld} /></Field>
+                <Field label="Cycle anchor"><input className="ppp-in" type="date" value={s.anchor || ""} onChange={(e) => updCycle(s.id, { anchor: e.target.value })} style={dateFld} /></Field>
+                <button onClick={() => updCycle(s.id, { meFirst: !s.meFirst })} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: s.meFirst ? hexA(EMBER, .14) : T.bg, border: "1px solid " + (s.meFirst ? EMBER : T.line2), borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: s.meFirst ? T.text : T.dim }}>{s.type === "eo_weekend" ? "I'm primary" : "Starts on my time"}</span>
+                  <span style={{ width: 32, height: 17, borderRadius: 9, background: s.meFirst ? EMBER : T.line2, position: "relative", flexShrink: 0 }}><span style={{ position: "absolute", top: 2, left: s.meFirst ? 17 : 2, width: 13, height: 13, borderRadius: "50%", background: "#fff" }} /></span>
+                </button>
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
         {/* major holidays */}
@@ -219,9 +281,7 @@ export default function PPP() {
               <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderBottom: i < yearEvents.length - 1 ? "1px solid " + T.line : "none", background: mineSide ? hexA(EMBER, .08) : "transparent", opacity: past ? 0.42 : 1 }}>
                 <span style={{ width: 4, alignSelf: "stretch", borderRadius: 3, background: split ? "linear-gradient(" + EMBER + "," + T.line2 + ")" : (ev.mine ? EMBER : T.line2), flexShrink: 0 }} />
                 <div style={{ width: 132, flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: T.dim }}>{fmtRange(ev.start, ev.end)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, textDecoration: past ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title || <span style={{ color: T.faint, fontStyle: "italic", fontWeight: 400 }}>(untitled)</span>}{split && <Repeat size={11} color={T.faint} style={{ marginLeft: 6, verticalAlign: "middle" }} />}</div>
-                </div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, textDecoration: past ? "line-through" : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title || <span style={{ color: T.faint, fontStyle: "italic", fontWeight: 400 }}>(untitled)</span>}{split && <Repeat size={11} color={T.faint} style={{ marginLeft: 6, verticalAlign: "middle" }} />}</div>
                 <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: mineSide ? EMBER : T.dim, flexShrink: 0 }}>{tag}</span>
                 <button onClick={() => setEditor({ id: ev.id, kind: ev.kind || "single", title: ev.title || "", start: ev.start || "", end: ev.end || "", mine: ev.mine !== false, split: ev.split || "", firstHalf: ev.firstHalf || "even" })} style={iconBtn}><Pencil size={13} /></button>
                 <button onClick={() => delEvent(ev.id)} style={iconBtn}><Trash2 size={13} /></button>
@@ -299,7 +359,11 @@ function Editor({ editor, setEditor, saveEvent, delEvent }) {
 }
 
 function L({ children }) { return <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "var(--faint)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>{children}</div>; }
+function Field({ label, children }) { return <div><L>{label}</L>{children}</div>; }
 function fmtRange(s, e) { if (!s) return ""; const sd = parseKey(s); if (!e || e === s) return sd.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); const ed = parseKey(e); const same = sd.getMonth() === ed.getMonth(); return sd.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " – " + ed.toLocaleDateString("en-US", same ? { day: "numeric" } : { month: "short", day: "numeric" }); }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function hexA(hex, a) { if (!hex || hex[0] !== "#") return "rgba(255,90,31," + a + ")"; const n = parseInt(hex.slice(1), 16); return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
 const navBtn = { width: 30, height: 30, borderRadius: 8, border: "1px solid var(--line2)", background: "var(--panel)", color: "var(--dim)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" };
 const iconBtn = { background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+const iconBtnWide = { display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid var(--line2)", color: "var(--dim)", borderRadius: 9, padding: "8px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" };
+const dateFld = { background: "var(--bg)", border: "1px solid var(--line2)", color: "var(--text)", borderRadius: 9, padding: "9px 11px", fontFamily: "inherit", fontSize: 13, outline: "none" };
