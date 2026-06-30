@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, createContext, useContext 
 import { XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from "recharts";
 import {
   TrendingUp, TrendingDown, Plus, X, Wallet, Building2, Landmark, CalendarClock,
-  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, ChevronRight, Scale, Upload, Table2, Repeat, Download,
+  PiggyBank, ArrowUpRight, ArrowDownRight, RotateCcw, Split, CreditCard, Sun, Moon, ChevronDown, ChevronRight, Scale, Upload, Table2, Repeat, Download, Pencil, Check, Trash2,
 } from "lucide-react";
 
 /* ------------------------------- palettes -------------------------------- */
@@ -88,26 +88,37 @@ const compact = (n) => {
 };
 
 /* --------------------------- small UI primitives -------------------------- */
-function NumInput({ value, onChange, style }) {
+function NumInput({ value, onChange, style, editable }) {
   const C = useC();
-  const [t, setT] = useState(fmtNum(value));
+  const [t, setT] = useState("");
   const focused = useRef(false);
-  useEffect(() => { if (!focused.current) setT(fmtNum(value)); }, [value]);
-  return (
+  useEffect(() => { if (!focused.current) setT(value === 0 || value ? String(value) : ""); }, [value]);
+  if (!editable) return (
     <span style={{ color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", ...style }}>{fmtNum(value) || "0"}</span>
   );
-}
-function TxtInput({ value, onChange, style }) {
-  const C = useC();
   return (
+    <input className="fin-edit" value={t} inputMode="decimal"
+      onFocus={() => { focused.current = true; }}
+      onChange={(e) => { const v = e.target.value; if (!/^-?\d*\.?\d*$/.test(v)) return; setT(v); if (onChange) { const n = parseFloat(v); onChange(isNaN(n) ? 0 : n); } }}
+      onBlur={() => { focused.current = false; setT(value === 0 || value ? String(value) : ""); }}
+      style={{ color: C.text, fontSize: 13.5, textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'Hanken Grotesk', sans-serif", background: C.bg2, border: `1px solid ${C.lineHi}`, borderRadius: 6, padding: "3px 6px", outline: "none", ...style }} />
+  );
+}
+function TxtInput({ value, onChange, style, editable }) {
+  const C = useC();
+  if (!editable) return (
     <span style={{ width: "100%", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", display: "inline-block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", ...style }}>{value}</span>
+  );
+  return (
+    <input className="fin-edit" value={value || ""} onChange={(e) => onChange && onChange(e.target.value)}
+      style={{ width: "100%", color: C.text, fontSize: 13.5, fontFamily: "'Hanken Grotesk', sans-serif", background: C.bg2, border: `1px solid ${C.lineHi}`, borderRadius: 6, padding: "3px 7px", outline: "none", boxSizing: "border-box", ...style }} />
   );
 }
 function Card({ children, style }) {
   const C = useC();
   return <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, boxShadow: C.shadow, ...style }}>{children}</div>;
 }
-function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false, defaultOpen = true }) {
+function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false, defaultOpen = true, editing, onToggleEdit }) {
   const C = useC();
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -119,6 +130,12 @@ function Panel({ title, icon, sub, right, children, bodyMax, collapsible = false
           <div style={{ color: C.text, fontSize: 13, fontWeight: 600 }}>{title}</div>
           {sub && open && <div style={{ color: C.mut2, fontSize: 11, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</div>}
         </div>
+        {onToggleEdit && (
+          <button onClick={(e) => { e.stopPropagation(); if (!open) setOpen(true); onToggleEdit(); }} title={editing ? "Done editing" : "Edit this table"}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: editing ? C.accent : "transparent", border: `1px solid ${editing ? C.accent : C.lineHi}`, color: editing ? "#fff" : C.mut, borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+            {editing ? <Check size={13} /> : <Pencil size={12} />}{editing ? "Done" : "Edit"}
+          </button>
+        )}
         {right}
         {collapsible && <ChevronDown size={16} color={C.mut} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />}
       </div>
@@ -159,6 +176,8 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
   const updItem = (key, id, patch) => setData((d) => ({ ...d, [key]: d[key].map((it) => (it.id === id ? { ...it, ...patch } : it)) }));
   const delItem = (key, id) => setData((d) => ({ ...d, [key]: d[key].filter((it) => it.id !== id) }));
   const addItem = (key, item) => setData((d) => ({ ...d, [key]: [...d[key], { id: uid(), ...item }] }));
+  const [edits, setEdits] = useState({});
+  const tog = (id) => setEdits((e) => ({ ...e, [id]: !e[id] }));
   const applyImport = (target, field, value) => {
     if (target.type === "account") updItem("accounts", target.id, { amount: value });
     else updItem("cards", target.id, field === "payment" ? { payment: value } : { balance: value });
@@ -380,20 +399,20 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
             </div>
 
             <div className="dgrid">
-              <div className="c6"><Panel title="Income" icon={<ArrowUpRight size={16} />} collapsible defaultOpen={false} right={<Total v={M.incomeTotal} color={C.pos} />}>
-                <List rows={data.income} onUpd={(id, p) => updItem("income", id, p)} onDel={(id) => delItem("income", id)} onAdd={() => addItem("income", { name: "New income", amount: 0 })} addLabel="Add income" />
+              <div className="c6"><Panel title="Income" icon={<ArrowUpRight size={16} />} collapsible defaultOpen={false} right={<Total v={M.incomeTotal} color={C.pos} />} editing={!!edits.income} onToggleEdit={() => tog("income")}>
+                <List rows={data.income} editable={!!edits.income} onUpd={(id, p) => updItem("income", id, p)} onDel={(id) => delItem("income", id)} onAdd={() => addItem("income", { name: "New income", amount: 0 })} addLabel="Add income" />
               </Panel></div>
-              <div className="c6"><Panel title="Annual Expenses" icon={<CalendarClock size={16} />} collapsible defaultOpen={false} sub={`${money0(M.annualTotal)}/yr · ${money0(M.annualMonthly)}/mo`} right={<Total v={M.annualTotal} color={C.mut} />}>
-                <AnnualList rows={data.annual} subsTotal={M.annualSubsTotal} onOpenSubs={onOpenSubs} />
+              <div className="c6"><Panel title="Annual Expenses" icon={<CalendarClock size={16} />} collapsible defaultOpen={false} sub={`${money0(M.annualTotal)}/yr · ${money0(M.annualMonthly)}/mo`} right={<Total v={M.annualTotal} color={C.mut} />} editing={!!edits.annual} onToggleEdit={() => tog("annual")}>
+                <AnnualList rows={data.annual} subsTotal={M.annualSubsTotal} onOpenSubs={onOpenSubs} editable={!!edits.annual} onUpd={(id, p) => updItem("annual", id, p)} onDel={(id) => delItem("annual", id)} onAdd={() => addItem("annual", { name: "New annual expense", amount: 0 })} />
               </Panel></div>
-              <div className="c12"><Panel title="Monthly Expenses" icon={<ArrowDownRight size={16} />} collapsible defaultOpen={false} right={<Total v={M.monthlyOut} color={C.neg} />}
+              <div className="c12"><Panel title="Monthly Expenses" icon={<ArrowDownRight size={16} />} collapsible defaultOpen={false} right={<Total v={M.monthlyOut} color={C.neg} />} editing={!!edits.expenses} onToggleEdit={() => tog("expenses")}
                 sub={<span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Split size={11} color={C.accent} /> household split {Math.round(S.householdSplit * 100)}% · tag what each is paid with</span>}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 8px 8px", color: C.mut, fontSize: 11, maxWidth: 360 }}>
                   <Split size={12} color={C.accent} /> Household split
                   <input type="range" min="0" max="100" value={Math.round(S.householdSplit * 100)} onChange={(e) => setS({ householdSplit: e.target.value / 100 })} style={{ accentColor: C.accent, flex: 1 }} />
                   <span style={{ color: C.accent, fontWeight: 600 }}>{Math.round(S.householdSplit * 100)}%</span>
                 </div>
-                <ExpenseList rows={data.expenses} split={S.householdSplit} subsTotal={M.monthlySubsTotal} onOpenSubs={onOpenSubs} />
+                <ExpenseList rows={data.expenses} split={S.householdSplit} subsTotal={M.monthlySubsTotal} onOpenSubs={onOpenSubs} editable={!!edits.expenses} onUpd={(id, p) => updItem("expenses", id, p)} onDel={(id) => delItem("expenses", id)} onAdd={() => addItem("expenses", { name: "New expense", amount: 0, cat: "", acct: "" })} />
                 <CardPayRows cardRows={M.cardRows} />
               </Panel></div>
             </div>
@@ -453,19 +472,19 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
             </div>
 
             <div className="dgrid">
-              <div className="c6"><Panel title="Assets" icon={<Building2 size={16} />} collapsible defaultOpen={false} right={<Total v={M.assetsTotal} color={C.text} />} bodyMax={260}>
-                <List rows={data.assets} big onUpd={(id, p) => updItem("assets", id, p)} onDel={(id) => delItem("assets", id)} onAdd={() => addItem("assets", { name: "New asset", amount: 0 })} addLabel="Add asset" />
+              <div className="c6"><Panel title="Assets" icon={<Building2 size={16} />} collapsible defaultOpen={false} right={<Total v={M.assetsTotal} color={C.text} />} bodyMax={260} editing={!!edits.assets} onToggleEdit={() => tog("assets")}>
+                <List rows={data.assets} big editable={!!edits.assets} onUpd={(id, p) => updItem("assets", id, p)} onDel={(id) => delItem("assets", id)} onAdd={() => addItem("assets", { name: "New asset", amount: 0 })} addLabel="Add asset" />
                 <AutoRow icon={<PiggyBank size={12} color={C.accent} />} label="Cash & accounts" v={M.cash} />
               </Panel></div>
-              <div className="c6"><Panel title="Liabilities" icon={<Landmark size={16} />} collapsible defaultOpen={false} right={<Total v={M.liabTotal} color={C.neg} />}>
-                <List rows={data.liabilities} big onUpd={(id, p) => updItem("liabilities", id, p)} onDel={(id) => delItem("liabilities", id)} onAdd={() => addItem("liabilities", { name: "New liability", amount: 0 })} addLabel="Add liability" />
+              <div className="c6"><Panel title="Liabilities" icon={<Landmark size={16} />} collapsible defaultOpen={false} right={<Total v={M.liabTotal} color={C.neg} />} editing={!!edits.liabilities} onToggleEdit={() => tog("liabilities")}>
+                <List rows={data.liabilities} big editable={!!edits.liabilities} onUpd={(id, p) => updItem("liabilities", id, p)} onDel={(id) => delItem("liabilities", id)} onAdd={() => addItem("liabilities", { name: "New liability", amount: 0 })} addLabel="Add liability" />
                 {S.includeCardDebt && M.cardDebt > 0 && <AutoRow icon={<CreditCard size={12} color={C.accent} />} label="Credit card balances" v={M.cardDebt} />}
               </Panel></div>
-              <div className="c6"><Panel title="Cash on Hand" icon={<PiggyBank size={16} />} collapsible defaultOpen={false} sub={`${data.accounts.length} accounts · feeds net worth & runway`} right={<Total v={M.cash} color={C.text} />} bodyMax={300}>
-                <List rows={data.accounts} big onUpd={(id, p) => updItem("accounts", id, p)} onDel={(id) => delItem("accounts", id)} onAdd={() => addItem("accounts", { name: "New account", amount: 0 })} addLabel="Add account" />
+              <div className="c6"><Panel title="Cash on Hand" icon={<PiggyBank size={16} />} collapsible defaultOpen={false} sub={`${data.accounts.length} accounts · feeds net worth & runway`} right={<Total v={M.cash} color={C.text} />} bodyMax={300} editing={!!edits.accounts} onToggleEdit={() => tog("accounts")}>
+                <List rows={data.accounts} big editable={!!edits.accounts} onUpd={(id, p) => updItem("accounts", id, p)} onDel={(id) => delItem("accounts", id)} onAdd={() => addItem("accounts", { name: "New account", amount: 0 })} addLabel="Add account" />
               </Panel></div>
-              <div className="c6"><Panel title="Credit Cards" icon={<CreditCard size={16} />} collapsible defaultOpen={false} sub="balance owed · utilization · monthly charges" right={<Total v={M.cardDebt} color={C.neg} />} bodyMax={300}>
-                <CardList cards={data.cards} spend={M.cardSpend} onUpd={(id, p) => updItem("cards", id, p)} onDel={(id) => delItem("cards", id)} onAdd={() => addItem("cards", { name: "New card", balance: 0, limit: 0, due: "" })} />
+              <div className="c6"><Panel title="Credit Cards" icon={<CreditCard size={16} />} collapsible defaultOpen={false} sub="balance owed · utilization · monthly charges" right={<Total v={M.cardDebt} color={C.neg} />} bodyMax={300} editing={!!edits.cards} onToggleEdit={() => tog("cards")}>
+                <CardList cards={data.cards} spend={M.cardSpend} editable={!!edits.cards} onUpd={(id, p) => updItem("cards", id, p)} onDel={(id) => delItem("cards", id)} onAdd={() => addItem("cards", { name: "New card", balance: 0, limit: 0, due: "" })} />
                 <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 10, color: C.mut2, fontSize: 11, cursor: "pointer" }}>
                   <input type="checkbox" checked={S.includeCardDebt} onChange={(e) => setS({ includeCardDebt: e.target.checked })} style={{ accentColor: C.accent, width: 13, height: 13 }} />
                   Count balances as debt in net worth
@@ -486,7 +505,7 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
             </button>
           </div>
           <div style={{ textAlign: "center", color: C.mut2, fontSize: 11, marginTop: 12 }}>
-            View only · tap "Edit data" to make changes — totals, net worth &amp; runway recalculate instantly
+            Tap <strong style={{ color: C.mut }}>Edit</strong> on any table to change its rows inline · or open the full spreadsheet with Edit data — totals recalculate instantly
           </div>
           {importOpen && (
             <ImportModal
@@ -567,28 +586,37 @@ function RowShell({ children, onDel }) {
   return (
     <div className="row" style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, transition: "background .15s" }}>
       {children}
+      {onDel && <button onClick={onDel} title="Delete row" style={{ background: "transparent", border: "none", color: C.mut2, cursor: "pointer", display: "flex", flexShrink: 0, padding: 2 }}><Trash2 size={14} /></button>}
     </div>
   );
 }
-function AddBtn() { return null; }
-function List({ rows, onUpd, onDel, onAdd, addLabel, big }) {
+function AddBtn({ onClick, label }) {
+  const C = useC();
+  if (!onClick) return null;
+  return (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", marginTop: 6, background: "transparent", border: `1px dashed ${C.lineHi}`, color: C.mut, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>
+      <Plus size={14} /> {label || "Add row"}
+    </button>
+  );
+}
+function List({ rows, onUpd, onDel, onAdd, addLabel, big, editable }) {
   const C = useC();
   return (
     <div>
       {rows.map((r) => { const cp = !!r.companyPaid; return (
-        <RowShell key={r.id}>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+        <RowShell key={r.id} onDel={editable ? () => onDel(r.id) : null}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} editable={editable} onChange={(v) => onUpd(r.id, { name: v })} style={{ width: editable ? "100%" : "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
           <div style={{ width: big ? 104 : 92, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
             <span style={{ color: C.mut2, fontSize: 12.5, marginRight: 1 }}>$</span>
-            <NumInput value={r.amount} style={{ display: "inline-block", width: big ? 88 : 76, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
+            <NumInput value={r.amount} editable={editable} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: big ? 88 : 76, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
           </div>
         </RowShell>
       ); })}
-      <AddBtn onClick={onAdd} label={addLabel} />
+      {editable && <AddBtn onClick={onAdd} label={addLabel} />}
     </div>
   );
 }
-function ExpenseList({ rows, split, subsTotal, onOpenSubs }) {
+function ExpenseList({ rows, split, subsTotal, onOpenSubs, onUpd, onDel, onAdd, editable }) {
   const C = useC();
   return (
     <div>
@@ -596,19 +624,20 @@ function ExpenseList({ rows, split, subsTotal, onOpenSubs }) {
         const cp = !!r.companyPaid;
         const eff = cp ? 0 : r.amount * (r.split ? split : 1);
         return (
-          <RowShell key={r.id}>
+          <RowShell key={r.id} onDel={editable ? () => onDel(r.id) : null}>
             <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
-            <div style={{ flex: 1, minWidth: 70, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
-            <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>
-            <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>
+            <div style={{ flex: 1, minWidth: 70, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} editable={editable} onChange={(v) => onUpd(r.id, { name: v })} style={{ width: editable ? "100%" : "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+            {!editable && <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>}
+            {!editable && <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>}
             <div style={{ width: 86, textAlign: "right", flexShrink: 0 }}>
               <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-              <NumInput value={r.amount} style={{ display: "inline-block", width: 66, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
-              {r.split && !cp && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
+              <NumInput value={r.amount} editable={editable} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 66, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
+              {r.split && !cp && !editable && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
             </div>
           </RowShell>
         );
       })}
+      {editable && <AddBtn onClick={onAdd} label="Add expense" />}
       <SubsRow total={subsTotal} onClick={() => onOpenSubs("monthly")} amtWidth={86} />
     </div>
   );
@@ -623,23 +652,24 @@ function SubsRow({ total, onClick, amtWidth }) {
     </div>
   );
 }
-function AnnualList({ rows, subsTotal, onOpenSubs }) {
+function AnnualList({ rows, subsTotal, onOpenSubs, onUpd, onDel, onAdd, editable }) {
   const C = useC();
   return (
     <div>
       {rows.map((r) => { const cp = !!r.companyPaid; return (
-        <RowShell key={r.id}>
+        <RowShell key={r.id} onDel={editable ? () => onDel(r.id) : null}>
           <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} style={{ width: "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
-            <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates, r.acct].filter(Boolean).join(" · ") || (r.note || "")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} editable={editable} onChange={(v) => onUpd(r.id, { name: v })} style={{ width: editable ? "100%" : "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+            {!editable && <div style={{ color: C.mut2, fontSize: 10.5, fontStyle: "italic", marginTop: -1 }}>{[r.freq, r.dates, r.acct].filter(Boolean).join(" · ") || (r.note || "")}</div>}
           </div>
           <div style={{ width: 96, textAlign: "right", flexShrink: 0 }}>
             <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-            <NumInput value={r.amount} style={{ display: "inline-block", width: 78, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
+            <NumInput value={r.amount} editable={editable} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 78, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
           </div>
         </RowShell>
       ); })}
+      {editable && <AddBtn onClick={onAdd} label="Add annual expense" />}
       <SubsRow total={subsTotal} onClick={() => onOpenSubs("annual")} amtWidth={96} />
     </div>
   );
@@ -683,7 +713,7 @@ function CardPayRows({ cardRows, onUpd }) {
     </div>
   );
 }
-function CardList({ cards, spend, onUpd, onDel, onAdd }) {
+function CardList({ cards, spend, onUpd, onDel, onAdd, editable }) {
   const C = useC();
   return (
     <div>
@@ -695,11 +725,12 @@ function CardList({ cards, spend, onUpd, onDel, onAdd }) {
           <div key={c.id} style={{ padding: "9px 9px", borderRadius: 9, border: `1px solid ${C.line}`, background: C.bg2, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <CreditCard size={13} color={C.accent} style={{ flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} style={{ fontWeight: 600 }} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}><TxtInput value={c.name} editable={editable} onChange={(v) => onUpd(c.id, { name: v })} style={{ fontWeight: 600 }} /></div>
+              {editable && <button onClick={() => onDel(c.id)} title="Delete card" style={{ background: "transparent", border: "none", color: C.mut2, cursor: "pointer", display: "flex", flexShrink: 0, padding: 2 }}><Trash2 size={14} /></button>}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-              <Field label="Balance"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.balance} onChange={(v) => onUpd(c.id, { balance: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>
-              <Field label="Limit"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.limit} onChange={(v) => onUpd(c.id, { limit: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>
+              <Field label="Balance"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.balance} editable={editable} onChange={(v) => onUpd(c.id, { balance: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>
+              <Field label="Limit"><span style={{ color: C.mut2, fontSize: 11 }}>$</span><NumInput value={c.limit} editable={editable} onChange={(v) => onUpd(c.id, { limit: v })} style={{ display: "inline-block", width: 60, textAlign: "left", fontSize: 12.5 }} /></Field>
             </div>
             <div style={{ marginTop: 7 }}>
               {util == null ? (
@@ -717,7 +748,7 @@ function CardList({ cards, spend, onUpd, onDel, onAdd }) {
           </div>
         );
       })}
-      <AddBtn onClick={onAdd} label="Add card" />
+      {editable && <AddBtn onClick={onAdd} label="Add card" />}
     </div>
   );
 }
