@@ -232,6 +232,8 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
 
   const negative = M.net < 0;
   const payOptions = useMemo(() => [...data.accounts.map((a) => a.name), ...data.cards.map((c) => c.name)].filter(Boolean), [data.accounts, data.cards]);
+  const payList = useMemo(() => [...new Set(["Cash", ...data.accounts.map((a) => a.name), ...data.cards.map((c) => c.name)].filter(Boolean))], [data.accounts, data.cards]);
+  const catOptions = useMemo(() => [...new Set(data.expenses.map((e) => e.cat).filter(Boolean))], [data.expenses]);
 
   const exportCSV = () => {
     const split = S.householdSplit != null ? S.householdSplit : 1;
@@ -412,7 +414,7 @@ export default function FinanceDashboard({ onEdit, onOpenSubs }) {
                   <input type="range" min="0" max="100" value={Math.round(S.householdSplit * 100)} onChange={(e) => setS({ householdSplit: e.target.value / 100 })} style={{ accentColor: C.accent, flex: 1 }} />
                   <span style={{ color: C.accent, fontWeight: 600 }}>{Math.round(S.householdSplit * 100)}%</span>
                 </div>
-                <ExpenseList rows={data.expenses} split={S.householdSplit} subsTotal={M.monthlySubsTotal} onOpenSubs={onOpenSubs} editable={!!edits.expenses} onUpd={(id, p) => updItem("expenses", id, p)} onDel={(id) => delItem("expenses", id)} onAdd={() => addItem("expenses", { name: "New expense", amount: 0, cat: "", acct: "" })} />
+                <ExpenseList rows={data.expenses} split={S.householdSplit} subsTotal={M.monthlySubsTotal} onOpenSubs={onOpenSubs} editable={!!edits.expenses} payList={payList} catOptions={catOptions} onUpd={(id, p) => updItem("expenses", id, p)} onDel={(id) => delItem("expenses", id)} onAdd={() => addItem("expenses", { name: "New expense", amount: 0, cat: "", acct: "", dueDay: "", split: false, companyPaid: false })} />
                 <CardPayRows cardRows={M.cardRows} />
               </Panel></div>
             </div>
@@ -616,23 +618,51 @@ function List({ rows, onUpd, onDel, onAdd, addLabel, big, editable }) {
     </div>
   );
 }
-function ExpenseList({ rows, split, subsTotal, onOpenSubs, onUpd, onDel, onAdd, editable }) {
+function ExpenseList({ rows, split, subsTotal, onOpenSubs, onUpd, onDel, onAdd, editable, payList, catOptions }) {
   const C = useC();
+  const efld = { background: C.bg2, border: `1px solid ${C.lineHi}`, color: C.text, borderRadius: 6, padding: "5px 7px", fontFamily: "inherit", fontSize: 12.5, outline: "none" };
   return (
     <div>
+      <datalist id="fin-cats">{(catOptions || []).map((c) => <option key={c} value={c} />)}</datalist>
       {rows.map((r) => {
         const cp = !!r.companyPaid;
         const eff = cp ? 0 : r.amount * (r.split ? split : 1);
+        if (editable) return (
+          <div key={r.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7, padding: "8px 9px", borderRadius: 8, border: `1px solid ${C.line}`, background: C.bg2, marginBottom: 7 }}>
+            <input value={r.name || ""} onChange={(e) => onUpd(r.id, { name: e.target.value })} placeholder="Name" style={{ ...efld, flex: "2 1 130px", minWidth: 0 }} />
+            <input list="fin-cats" value={r.cat || ""} onChange={(e) => onUpd(r.id, { cat: e.target.value })} placeholder="Category" style={{ ...efld, flex: "1 1 100px", minWidth: 0 }} />
+            <select value={r.acct || ""} onChange={(e) => onUpd(r.id, { acct: e.target.value })} style={{ ...efld, flex: "1 1 110px", minWidth: 0, cursor: "pointer" }}>
+              <option value="">Paid with…</option>
+              {(payList || []).map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }} title="Due / draft day of month">
+              <span style={{ color: C.mut2, fontSize: 10.5 }}>Day</span>
+              <input value={r.dueDay || ""} inputMode="numeric" onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2); onUpd(r.id, { dueDay: v === "" ? "" : Math.min(31, +v) }); }} placeholder="—" style={{ ...efld, width: 40, textAlign: "center" }} />
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: C.mut, cursor: "pointer" }} title="Split with household">
+              <input type="checkbox" checked={!!r.split} onChange={(e) => onUpd(r.id, { split: e.target.checked })} style={{ accentColor: C.accent, width: 14, height: 14 }} /> Split
+            </label>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: C.mut, cursor: "pointer" }} title="Paid by a company / not out of pocket">
+              <input type="checkbox" checked={cp} onChange={(e) => onUpd(r.id, { companyPaid: e.target.checked })} style={{ accentColor: C.accent, width: 14, height: 14 }} /> Company
+            </label>
+            <div style={{ display: "flex", alignItems: "center", marginLeft: "auto" }}>
+              <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
+              <NumInput value={r.amount} editable onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 72 }} />
+            </div>
+            <button onClick={() => onDel(r.id)} title="Delete row" style={{ background: "transparent", border: "none", color: C.mut2, cursor: "pointer", display: "flex", flexShrink: 0, padding: 2 }}><Trash2 size={14} /></button>
+          </div>
+        );
         return (
-          <RowShell key={r.id} onDel={editable ? () => onDel(r.id) : null}>
+          <RowShell key={r.id}>
             <span title={r.split ? "Split" : "Full"} style={{ color: cp ? C.mut2 : (r.split ? C.accent : C.mut2), display: "flex", flexShrink: 0, padding: 1 }}><Split size={13} /></span>
-            <div style={{ flex: 1, minWidth: 70, display: "flex", alignItems: "center", gap: 6 }}><TxtInput value={r.name} editable={editable} onChange={(v) => onUpd(r.id, { name: v })} style={{ width: editable ? "100%" : "auto", color: cp ? C.mut2 : C.text }} />{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
-            {!editable && <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>}
-            {!editable && <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>}
+            <div style={{ flex: 1, minWidth: 70, display: "flex", alignItems: "center", gap: 6 }}><span style={{ color: cp ? C.mut2 : C.text, fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>{cp && <span style={{ fontSize: 8.5, fontFamily: "monospace", letterSpacing: ".05em", textTransform: "uppercase", color: C.mut2, border: `1px solid ${C.line}`, borderRadius: 4, padding: "1px 4px" }}>company</span>}</div>
+            <span style={{ color: C.mut, fontSize: 10.5, flexShrink: 0, maxWidth: 96, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.cat}</span>
+            <span style={{ color: r.acct ? C.mut : C.mut2, fontSize: 10.5, flexShrink: 0, maxWidth: 120, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.acct || "—"}</span>
+            {r.dueDay ? <span style={{ color: C.mut2, fontSize: 10, flexShrink: 0 }} title="Draft day">◔ {r.dueDay}</span> : null}
             <div style={{ width: 86, textAlign: "right", flexShrink: 0 }}>
               <span style={{ color: C.mut2, fontSize: 12.5 }}>$</span>
-              <NumInput value={r.amount} editable={editable} onChange={(v) => onUpd(r.id, { amount: v })} style={{ display: "inline-block", width: 66, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
-              {r.split && !cp && !editable && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
+              <NumInput value={r.amount} style={{ display: "inline-block", width: 66, color: cp ? C.mut2 : C.text, textDecoration: cp ? "line-through" : "none" }} />
+              {r.split && !cp && <div style={{ fontSize: 10, color: C.accent, marginTop: -2 }}>→ {money0(eff)}</div>}
             </div>
           </RowShell>
         );
